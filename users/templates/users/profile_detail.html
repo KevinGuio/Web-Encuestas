@@ -1,0 +1,14 @@
+{% extends "global/base.html" %}
+
+{% block content %}
+<div class="profile">
+    <h2>{{ profile.user.username }}</h2>
+    {% if profile.profile_picture %}
+        <img src="{{ profile.profile_picture.url }}" alt="Foto de perfil" width="150">
+    {% endif %}
+    <p><strong>Biografía:</strong> {{ profile.bio }}</p>
+    <p><strong>Ubicación:</strong> {{ profile.location }}</p>
+    <p><strong>Fecha de nacimiento:</strong> {{ profile.birth_date }}</p>
+    <a href="{% url 'users:profile_edit' %}" class="btn">Editar Perfil</a>
+</div>
+{% endblock %}

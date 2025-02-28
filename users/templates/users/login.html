@@ -1,0 +1,11 @@
+{% extends "global/base.html" %}
+
+{% block content %}
+<h2>Iniciar Sesión</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Login</button>
+</form>
+<p>¿No tienes cuenta? <a href="{% url 'users:register' %}">Regístrate aquí</a></p>
+{% endblock %}
