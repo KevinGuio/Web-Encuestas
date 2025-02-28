@@ -1,0 +1,32 @@
+<!-- surveys/templates/surveys/survey_detail.html -->
+{% extends "global/base.html" %}
+
+{% block content %}
+<h2>{{ survey.title }}</h2>
+<p>{{ survey.description }}</p>
+
+<h3>Respuestas:</h3>
+<ul>
+    {% for answer in survey.answers.all %}
+        <li>
+            {{ answer.text }} - Votos: {{ answer.votes }}
+            {% if not user_has_voted %}
+                <form method="post" action="{% url 'vote' survey.pk answer.pk %}">
+                    {% csrf_token %}
+                    <button type="submit">Votar</button>
+                </form>
+            {% endif %}
+        </li>
+    {% endfor %}
+</ul>
+
+{% if user_has_voted %}
+    <p>¡Ya has votado en esta encuesta!</p>
+{% endif %}
+{% if request.user == survey.creator or request.user.is_staff %}
+<div class="admin-actions">
+    <a href="{% url 'survey_edit' survey.pk %}" class="btn">Editar Encuesta</a>
+    <a href="{% url 'survey_delete' survey.pk %}" class="btn btn-danger">Eliminar Encuesta</a>
+</div>
+{% endif %}
+{% endblock %}

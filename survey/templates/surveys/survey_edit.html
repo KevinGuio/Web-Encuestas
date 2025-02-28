@@ -1,0 +1,19 @@
+{% extends "global/base.html" %}
+
+{% block content %}
+<h2>Editar Encuesta</h2>
+<form method="post" id="surveyForm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn">Guardar Cambios</button>
+    <a href="{% url 'survey_detail' object.pk %}" class="btn">Cancelar</a>
+</form>
+
+<!-- Mismo JS que en creación para mostrar campos dinámicos -->
+<script>
+document.getElementById('id_num_answers').addEventListener('change', function() {
+    // ... (código JS anterior)
+});
+document.getElementById('id_num_answers').dispatchEvent(new Event('change'));
+</script>
+{% endblock %}

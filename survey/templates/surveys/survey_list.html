@@ -1,0 +1,14 @@
+{% extends "global/base.html" %}
+
+{% block content %}
+<h2>Encuestas Creadas</h2>
+<ul>
+    {% for survey in surveys %}
+        <li>
+            <a href="{% url 'survey_detail' survey.pk %}">{{ survey.title }}</a>
+            <p>{{ survey.description }}</p>
+        </li>
+    {% endfor %}
+</ul>
+<a href="{% url 'survey_create' %}" class="btn">Crear Nueva Encuesta</a>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends "global/base.html" %}
+
+{% block content %}
+<h2>Crear Encuesta</h2>
+<form method="post" id="surveyForm">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn">Crear y Publicar Encuesta</button>
+</form>
+
+<script>
+document.getElementById('id_num_answers').addEventListener('change', function() {
+    const num = parseInt(this.value);
+    // Mostrar/ocultar campos de respuestas
+    for (let i = 1; i <= 5; i++) {
+        const field = document.getElementById(`id_answer_${i}`);
+        if (field) {
+            field.parentElement.style.display = i <= num ? 'block' : 'none';
+            field.required = i <= num;
+        }
+    }
+});
+
+// Ejecutar al cargar la página para inicializar
+document.getElementById('id_num_answers').dispatchEvent(new Event('change'));
+</script>
+{% endblock %}
