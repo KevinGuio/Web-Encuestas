@@ -257,53 +257,61 @@ def rate_survey(request, pk):
 
 
 @require_POST
-def post_comment(request, survey_id):
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Debes iniciar sesión'}, status=403)
+def post_comment(request, pk):
+    survey = get_object_or_404(Survey, pk=pk)
     
-    survey = get_object_or_404(Survey, id=survey_id)
-    
-    if timezone.now() > survey.deadline:
-        return JsonResponse({'error': 'La encuesta ha finalizado'}, status=403)
-    
-    form = CommentForm(request.POST)
-    if form.is_valid():
-        comment = form.save(commit=False)
-        comment.survey = survey
-        comment.user = request.user
-        comment.save()
+    try:
+        comment = Comment.objects.create(
+            user=request.user,
+            survey=survey,
+            text=request.POST.get('text'),
+            parent_id=request.POST.get('parent_id')
+        )
+        
         return JsonResponse({
             'success': True,
-            'comment': render_to_string('surveys/comment.html', {'comment': comment})
+            'comment_id': comment.id,
+            'username': request.user.username,
+            'is_owner_or_admin': request.user == comment.user or request.user.is_staff,
+            'text': comment.text
         })
-    
-    return JsonResponse({'error': 'Comentario inválido'}, status=400)
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 
 @require_POST
-def like_comment(request, comment_id):
-    if not request.user.is_authenticated:
-        return JsonResponse({'error': 'Debes iniciar sesión'}, status=403)
+@login_required
+def like_comment(request, pk):
+    comment = get_object_or_404(Comment, pk=pk)
+    user = request.user
     
-    comment = get_object_or_404(Comment, id=comment_id)
-    
-    if comment.likes.filter(id=request.user.id).exists():
-        comment.likes.remove(request.user)
-        liked = False
-    else:
-        comment.likes.add(request.user)
-        liked = True
-    
-    return JsonResponse({
-        'liked': liked,
-        'total_likes': comment.total_likes()
-    })
+    try:
+        # Verificar si el usuario ya dio like
+        liked = user in comment.likes.all()
+        if liked:
+            comment.likes.remove(user)
+        else:
+            comment.likes.add(user)
+        
+        # Devolver datos actualizados
+        return JsonResponse({
+            'success': True,
+            'liked': not liked,  # Estado invertido
+            'total_likes': comment.likes.count()
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 @require_POST
-def delete_comment(request, comment_id):
-    comment = get_object_or_404(Comment, id=comment_id)
+def delete_comment(request, pk):
+    comment = get_object_or_404(Comment, pk=pk)
     
-    if not comment.can_delete(request.user):
-        return JsonResponse({'error': 'No autorizado'}, status=403)
+    if not (request.user == comment.user or request.user.is_staff):
+        return JsonResponse({'success': False, 'error': 'No tienes permiso'}, status=403)
     
-    comment.delete()
-    return JsonResponse({'success': True})
+    try:
+        comment.delete()
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

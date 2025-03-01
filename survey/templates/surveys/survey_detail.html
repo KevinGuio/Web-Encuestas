@@ -1,3 +1,4 @@
+<!-- surveys/templates/surveys/survey_detail.html -->
 {% extends "global/base.html" %}
 {% load survey_filters %}
 
@@ -64,6 +65,15 @@
             </div>
         {% endif %}
 
+        <!-- Mensajes de estado -->
+        <div class="status-messages">
+            {% if user.is_authenticated and user_has_voted %}
+                <p class="already-voted">¡Ya has votado en esta encuesta!</p>
+            {% elif not user.is_authenticated and not is_expired %}
+                <p class="login-required">Debes <a href="{% url 'login' %}?next={{ request.path }}">iniciar sesión</a> para votar.</p>
+            {% endif %}
+        </div>
+
         <!-- Valoraciones -->
         <div class="rating-section">
             <h3>Valoración de la encuesta</h3>
@@ -97,10 +107,29 @@
             {% if not is_expired and user.is_authenticated %}
                 <form id="comment-form" class="comment-form">
                     {% csrf_token %}
-                    <textarea id="comment-text" placeholder="Escribe tu comentario..." required></textarea>
-                    <button type="submit" class="btn">Publicar comentario</button>
+                    <div class="form-group">
+                        <textarea 
+                            id="comment-text" 
+                            placeholder="Escribe tu comentario..." 
+                            maxlength="500"
+                            rows="3"
+                            required
+                        ></textarea>
+                        <div class="form-footer">
+                            <small class="char-counter"><span id="char-count">0</span>/500</small>
+                            <button type="submit" class="btn">
+                                <span class="material-icons">send</span> Publicar
+                            </button>
+                        </div>
+                    </div>
                 </form>
             {% endif %}
+
+            <!-- Mensaje de carga - Agregar esto -->
+            <div id="loading-message" style="display: none;">
+                <div class="spinner"></div>
+                Publicando comentario...
+            </div>
 
             <div id="comments-list">
                 {% for comment in survey.comments.all %}
@@ -133,90 +162,449 @@
         </div>
         {% endif %}
     </div>
-
-    <!-- Mensajes de estado -->
-    <div class="status-messages">
-        {% if user.is_authenticated and user_has_voted %}
-            <p class="already-voted">¡Ya has votado en esta encuesta!</p>
-        {% elif not user.is_authenticated and not is_expired %}
-            <p class="login-required">Debes <a href="{% url 'login' %}?next={{ request.path }}">iniciar sesión</a> para votar.</p>
-        {% endif %}
-    </div>
 </div>
 
 <!-- Scripts -->
 {% if not is_expired %}
 <script>
-// Script para comentarios
+// Script para comentarios CORREGIDO
 document.getElementById('comment-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const text = document.getElementById('comment-text').value;
+    const text = document.getElementById('comment-text').value.trim();
     
+    if (!text) {
+        alert('Por favor escribe un comentario');
+        return;
+    }
+
     try {
         const response = await fetch("{% url 'post_comment' survey.pk %}", {
             method: 'POST',
             headers: {
                 'X-CSRFToken': '{{ csrf_token }}',
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/x-www-form-urlencoded',
             },
-            body: JSON.stringify({text: text})
+            body: new URLSearchParams({
+                'text': text,
+                'survey_id': '{{ survey.pk }}'
+            })
         });
+        
+        if (!response.ok) throw new Error('Error en la respuesta del servidor');
         
         const data = await response.json();
         
         if (data.success) {
             const commentsList = document.getElementById('comments-list');
-            commentsList.insertAdjacentHTML('afterbegin', data.comment);
+            const emptyMessage = commentsList.querySelector('.no-comments');
+            if (emptyMessage) emptyMessage.remove();
+            
+            // Nueva estructura del comentario con todos los elementos
+            const newComment = document.createElement('div');
+            newComment.className = 'comment';
+            newComment.setAttribute('data-comment-id', data.comment_id);
+            newComment.innerHTML = `
+                <div class="comment-header">
+                    <strong>${data.username}</strong>
+                    <small>Ahora mismo</small>
+                    ${data.is_owner_or_admin ? `
+                    <button class="delete-comment-btn" onclick="deleteComment(${data.comment_id})">
+                        ❌ Eliminar
+                    </button>` : ''}
+                </div>
+                <p>${text}</p>
+                <div class="comment-actions">
+                    <button class="like-btn" onclick="toggleLike(${data.comment_id})">
+                        ❤️ <span>0</span>
+                    </button>
+                    {% if not is_expired and user.is_authenticated %}
+                    <button class="reply-btn" onclick="toggleReplyForm(${data.comment_id})">
+                        💬 Responder
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="reply-form" id="reply-form-${data.comment_id}" style="display: none;">
+                    <!-- Formulario de respuesta -->
+                </div>
+                <div class="replies"></div>
+            `;
+            
+            commentsList.insertBefore(newComment, commentsList.firstChild);
             document.getElementById('comment-text').value = '';
         }
     } catch (error) {
         console.error('Error:', error);
+        alert('Error al publicar el comentario. Recarga la página e intenta nuevamente.');
     }
 });
 
-// Funciones para likes y respuestas
-window.toggleLike = async (commentId) => {
+// Funcionalidad para respuestas
+window.toggleReplyForm = (commentId) => {
+    const form = document.getElementById(`reply-form-${commentId}`);
+    const allForms = document.querySelectorAll('.reply-form');
+    
+    // Cerrar otros formularios
+    allForms.forEach(f => {
+        if (f.id !== `reply-form-${commentId}`) f.style.display = 'none';
+    });
+    
+    // Toggle del formulario actual
+    form.style.display = form.style.display === 'block' ? 'none' : 'block';
+};
+
+window.postReply = async (event, parentId) => {
+    event.preventDefault();
+    const text = event.target.querySelector('textarea').value.trim();
+    
+    if (!text) return;
+
     try {
-        const response = await fetch(`/comments/${commentId}/like/`, {
+        const response = await fetch("{% url 'post_comment' survey.pk %}", {
             method: 'POST',
-            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: new URLSearchParams({
+                'text': text,
+                'survey_id': '{{ survey.pk }}',
+                'parent_id': parentId
+            })
         });
-        
+
         const data = await response.json();
-        const likeBtn = document.querySelector(`[data-comment-id="${commentId}"] .like-btn`);
         
-        if (data.liked) {
-            likeBtn.classList.add('liked');
-        } else {
-            likeBtn.classList.remove('liked');
+        if (data.success) {
+            const parentComment = document.querySelector(`[data-comment-id="${parentId}"] .replies`);
+            const newReply = document.createElement('div');
+            newReply.className = 'comment';
+            newReply.setAttribute('data-comment-id', data.comment_id);
+            newReply.innerHTML = `
+                <div class="comment-header">
+                    <strong>${data.username}</strong>
+                    <small>Ahora mismo</small>
+                    ${data.is_owner_or_admin ? `
+                    <button class="delete-comment-btn" onclick="deleteComment(${data.comment_id})">
+                        ❌ Eliminar
+                    </button>` : ''}
+                </div>
+                <p>${text}</p>
+                <div class="comment-actions">
+                    <button class="like-btn" onclick="toggleLike(${data.comment_id})">
+                        ❤️ <span>0</span>
+                    </button>
+                    {% if not is_expired and user.is_authenticated %}
+                    <button class="reply-btn" onclick="toggleReplyForm(${data.comment_id})">
+                        💬 Responder
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="reply-form" id="reply-form-${data.comment_id}" style="display: none;"></div>
+                <div class="replies"></div>
+            `;
+            parentComment.appendChild(newReply);
+            event.target.reset();
+            toggleReplyForm(parentId);
         }
-        likeBtn.querySelector('span').textContent = data.total_likes;
-        
     } catch (error) {
         console.error('Error:', error);
     }
 };
 
-window.deleteComment = async (commentId) => {
-    if (confirm('¿Eliminar este comentario?')) {
-        try {
-            await fetch(`/comments/${commentId}/delete/`, {
-                method: 'POST',
-                headers: {'X-CSRFToken': '{{ csrf_token }}'}
-            });
-            document.querySelector(`[data-comment-id="${commentId}"]`).remove();
-        } catch (error) {
-            console.error('Error:', error);
+// Actualiza la función toggleLike para corazones
+window.toggleLike = async (commentId) => {
+    const id = parseInt(commentId);
+    const url = "{% url 'like_comment' 0 %}".replace('0', id); // URL dinámica
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            const likeBtn = document.querySelector(`[data-comment-id="${commentId}"] .like-btn`);
+            const counter = likeBtn.querySelector('span');
+            counter.textContent = data.total_likes;
+            likeBtn.classList.toggle('liked', data.liked);  
+        } else {
+            alert(data.error || 'Error al procesar el like');
         }
+        
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
     }
 };
 
-// Resto del script existente...
+window.deleteComment = async (commentId) => {
+    // Convertir a número
+
+    const id = parseInt(commentId);
+    const url = "{% url 'delete_comment' 0 %}".replace('0', id); // URL dinámica
+    if (!confirm('¿Estás seguro de eliminar este comentario?')) return;
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Buscar usando el ID convertido
+            const commentElement = document.querySelector(`[data-comment-id="${id}"]`);
+            commentElement.remove();
+        } else {
+            alert(data.error || 'Error al eliminar');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    }
+};
+
+</script>
+{% endif %}
+
+
+
+<!-- Scripts -->
+{% if not is_expired %}
+<script>
+document.querySelectorAll('.star').forEach(star => {
+    star.addEventListener('click', async (e) => {
+        const rating = parseInt(e.target.dataset.rating);
+        const url = "{% url 'rate_survey' survey.pk %}";
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({stars: rating})
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                document.querySelectorAll('.star').forEach((s, index) => {
+                    s.classList.toggle('active', index < rating);
+                });
+                
+                document.getElementById('average-rating').innerHTML = `
+                    ${'★'.repeat(data.full)}${data.half ? '½' : ''}${'☆'.repeat(5 - data.full - data.half)}
+                    <span>(${data.average}/5.0)</span>
+                `;
+                
+                document.getElementById('rating-message').textContent = "¡Valoración guardada!";
+            }
+        } catch (error) {
+            document.getElementById('rating-message').textContent = "Error al guardar la valoración";
+        }
+    });
+});
+
+function copySurveyLink() {
+    const link = window.location.href;
+    navigator.clipboard.writeText(link)
+        .then(() => {
+            const tooltip = document.querySelector('.tooltip');
+            tooltip.style.visibility = 'visible';
+            setTimeout(() => {
+                tooltip.style.visibility = 'hidden';
+            }, 2000);
+        })
+        .catch(err => console.error('Error al copiar:', err));
+}
 </script>
 {% endif %}
 
 <!-- Estilos -->
 <style>
+.survey-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.survey-header {
+    border-bottom: 2px solid #eee;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+}
+
+.survey-meta p {
+    margin: 0.3rem 0;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.deadline-status {
+    padding: 8px 12px;
+    border-radius: 5px;
+    display: inline-block;
+}
+
+.deadline-status.active {
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.deadline-status.expired {
+    background: #ffebee;
+    color: #d32f2f;
+}
+
+.voting-section, .results-section {
+    margin: 2rem 0;
+}
+
+.answers-list {
+    list-style: none;
+    padding: 0;
+}
+
+.answer-item {
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.vote-button {
+    background: #48bb78;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.vote-button:hover {
+    background: #38a169;
+}
+
+.results-summary {
+    margin: 1.5rem 0;
+}
+
+.result-item {
+    margin: 1rem 0;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    position: relative;
+}
+
+.result-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: #c8e6c9;
+    z-index: 0;
+    transition: width 0.5s ease;
+}
+
+.rating-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.star-rating {
+    font-size: 2rem;
+    cursor: pointer;
+}
+
+.star {
+    color: #e4e5e9;
+    transition: color 0.2s;
+}
+
+.star.active {
+    color: #ffd700;
+}
+
+.star.disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.action-section {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.share-btn {
+    background: #6366f1;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.3s;
+}
+
+.share-btn:hover {
+    background: #4f46e5;
+}
+
+.tooltip {
+    visibility: hidden;
+    background: #333;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px;
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+}
+
+.admin-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.export-btn {
+    background: #2196f3;
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background 0.3s;
+}
+
+.export-btn:hover {
+    background: #1976d2;
+}
+
+.status-messages {
+    margin-top: 1.5rem;
+}
+
 /* Estilos para comentarios */
 .comments-section {
     margin-top: 3rem;
@@ -313,6 +701,194 @@ window.deleteComment = async (commentId) => {
     text-align: center;
     color: #718096;
     padding: 2rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    animation: spin 1s linear infinite;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 10px;
+}
+
+#loading-message {
+    text-align: center;
+    padding: 1rem;
+    color: #666;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.char-counter {
+    color: #666;
+    font-size: 0.8rem;
+}
+
+.form-group {
+    position: relative;
+    margin-bottom: 1rem;
+}
+
+.form-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Estilos para corazones y respuestas */
+.like-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 20px;
+}
+
+.like-btn.liked {
+    color: #e53e3e;
+    background: rgba(229, 62, 62, 0.1);
+}
+
+.like-btn:hover {
+    transform: scale(1.1);
+}
+
+.reply-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #4a5568;
+    padding: 5px 10px;
+    border-radius: 5px;
+    transition: all 0.3s;
+}
+
+.reply-btn:hover {
+    background: #f7fafc;
+}
+
+.reply-form {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    display: none;
+}
+
+.reply-form textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    resize: vertical;
+}
+
+.reply-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.delete-comment-btn {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 5px;
+    transition: opacity 0.3s;
+}
+
+.delete-comment-btn:hover {
+    opacity: 0.8;
+}
+
+.replies {
+    margin-left: 2rem;
+    border-left: 2px solid #e2e8f0;
+    padding-left: 1rem;
+    margin-top: 1rem;
+}
+
+/* Agrega estos estilos */
+.like-btn.liked {
+    color: #e53e3e !important;
+    animation: heartBeat 0.5s;
+}
+
+@keyframes heartBeat {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.3); }
+    50% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+.reply-form {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.reply-form textarea {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+    resize: vertical;
+}
+
+.reply-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.reply-actions button {
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.reply-actions button[type="submit"] {
+    background: #48bb78;
+    color: white;
+    border: none;
+}
+
+.reply-actions button[type="button"] {
+    background: #f56565;
+    color: white;
+    border: none;
+}
+
+.like-btn.liked {
+    color: #e53e3e !important;
+    animation: heartBeat 0.5s;
+}
+
+@keyframes heartBeat {
+    0% { transform: scale(1); }
+    25% { transform: scale(1.2); }
+    50% { transform: scale(0.9); }
+    100% { transform: scale(1); }
 }
 </style>
 {% endblock %}

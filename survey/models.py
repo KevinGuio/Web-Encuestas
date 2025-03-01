@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from django.db.models import Avg
+from django.conf import settings
 
 # Create your models here.
 User = get_user_model()
@@ -49,22 +50,6 @@ class Answer(models.Model):
     text = models.CharField("Respuesta", max_length=200)
     votes = models.IntegerField("Votos", default=0)  # Nuevo campo
 
-class Comment(models.Model):
-    survey = models.ForeignKey(Survey, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    text = models.TextField()
-    votes = models.IntegerField(default=0)
-    is_reported = models.BooleanField(default=False)
-
-class Report(models.Model):
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
-    reporter = models.ForeignKey(User, on_delete=models.CASCADE)
-    reason = models.TextField()
-
-class Vote(models.Model):
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE)
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
-    value = models.IntegerField()
 
 class UserVote(models.Model):
     """Registra que un usuario ya votó en una encuesta (para evitar votos múltiples)"""
@@ -90,7 +75,11 @@ class Comment(models.Model):
     parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
     text = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
-    likes = models.ManyToManyField(User, related_name='liked_comments', blank=True)
+    likes = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='liked_comments',
+        blank=True
+    )
 
     class Meta:
         ordering = ['-created_at']

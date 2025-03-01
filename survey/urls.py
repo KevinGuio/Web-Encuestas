@@ -18,7 +18,7 @@ urlpatterns = [
     path('<int:pk>/delete/', SurveyDeleteView.as_view(), name='survey_delete'),
     path('<int:pk>/export/', ExportSurveyView.as_view(), name='survey_export'),
     path('<int:pk>/rate/', rate_survey, name='rate_survey'),
-    path('comments/<int:comment_id>/like/', views.like_comment, name='like_comment'),
-    path('comments/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),
-    path('<int:survey_id>/comment/', views.post_comment, name='post_comment'),
+    path('survey/<int:pk>/comment/', views.post_comment, name='post_comment'),
+    path('comments/<int:pk>/like/', views.like_comment, name='like_comment'),
+    path('comments/<int:pk>/delete/', views.delete_comment, name='delete_comment'),
 ]

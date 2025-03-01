@@ -1,28 +1,46 @@
-<div class="comment {% if comment.parent %}reply{% endif %}" data-comment-id="{{ comment.id }}">
+<!-- surveys/templates/surveys/comment.html -->
+<div class="comment" data-comment-id="{{ comment.id }}">
     <div class="comment-header">
         <strong>{{ comment.user.username }}</strong>
-        <small>{{ comment.created_at|timesince }} ago</small>
+        <small>{{ comment.created_at|timesince }} atrás</small>
         
-        {% if comment.can_delete(request.user) %}
-            <button class="delete-comment-btn" onclick="deleteComment('{{ comment.id }}')">🗑</button>
+        <!-- Botón de eliminar -->
+        {% if request.user == comment.user or request.user.is_staff %}
+        <button class="delete-comment-btn" onclick="deleteComment('{{ comment.id }}')">
+            ❌ Eliminar
+        </button>
         {% endif %}
     </div>
-    
-    <p class="comment-text">{{ comment.text }}</p>
+    <p>{{ comment.text }}</p>
     
     <div class="comment-actions">
+        <!-- Botón de Like con corazón -->
         <button class="like-btn {% if request.user in comment.likes.all %}liked{% endif %}" 
                 onclick="toggleLike('{{ comment.id }}')">
-            ♥ <span>{{ comment.total_likes }}</span>
+            ❤️ <span>{{ comment.likes.count }}</span>
         </button>
         
-        {% if not comment.parent and not is_expired %}
-            <button class="reply-btn" onclick="showReplyForm('{{ comment.id }}')">Responder</button>
+        <!-- Botón de respuesta -->
+        {% if not is_expired and user.is_authenticated %}
+        <button class="reply-btn" onclick="toggleReplyForm('{{ comment.id }}')">
+            💬 Responder
+        </button>
         {% endif %}
     </div>
-    
-    <div class="reply-form" id="reply-form-{{ comment.id }}"></div>
-    
+
+    <!-- Formulario de respuesta (oculto por defecto) -->
+    <div class="reply-form" id="reply-form-{{ comment.id }}" style="display: none;">
+        <form onsubmit="postReply(event, '{{ comment.id }}')">
+            {% csrf_token %}
+            <textarea required placeholder="Escribe tu respuesta..."></textarea>
+            <div class="reply-actions">
+                <button type="button" onclick="toggleReplyForm('{{ comment.id }}')">Cancelar</button>
+                <button type="submit">Enviar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Respuestas anidadas -->
     <div class="replies">
         {% for reply in comment.replies.all %}
             {% include "surveys/comment.html" with comment=reply %}
