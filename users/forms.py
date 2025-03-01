@@ -6,9 +6,10 @@ from .models import Profile
 class ProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = Profile
-        fields = ['bio', 'location', 'birth_date', 'profile_picture']
+        fields = ['bio', 'country', 'address', 'phone', 'birth_date', 'profile_picture']  # Campos actualizados
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
+            'phone': forms.TextInput(attrs={'placeholder': '+56912345678'}),  # Formato sugerido
         }
 
 class CustomUserCreationForm(UserCreationForm):

@@ -1,4 +1,5 @@
 from django.views.generic import CreateView
+from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from .models import Survey, Answer
 from .forms import SurveyCreateForm
@@ -12,6 +13,9 @@ from .models import Survey, Answer, UserVote
 from django.views.generic import UpdateView, DeleteView
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.urls import reverse_lazy
+from django.utils import timezone
+import csv
+from django.http import HttpResponse
 
 class SurveyCreateView(LoginRequiredMixin, CreateView):
     model = Survey
@@ -33,6 +37,7 @@ class SurveyCreateView(LoginRequiredMixin, CreateView):
             )
         
         return redirect('survey_detail', pk=survey.pk)  # Redirige al detalle
+
 class SurveyDetailView(DetailView):
     model = Survey
     template_name = 'surveys/survey_detail.html'
@@ -40,12 +45,18 @@ class SurveyDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Verificar si el usuario ya votó
+        survey = self.object
+        
+        # Verificar si la encuesta ha expirado
+        context['is_expired'] = timezone.now() > survey.deadline
+        
+        # Resto de lógica existente
         if self.request.user.is_authenticated:
             context['user_has_voted'] = UserVote.objects.filter(
-                user=self.request.user,
-                survey=self.object
+                user=self.request.user, 
+                survey=survey
             ).exists()
+            
         return context
 
 from django.views.generic import ListView
@@ -54,6 +65,13 @@ class SurveyListView(ListView):
     model = Survey
     template_name = 'surveys/survey_list.html'
     context_object_name = 'surveys'
+    ordering = ['-created_at']
+    paginate_by = 10
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['current_time'] = timezone.now()
+        return context
 
 @login_required
 @require_POST
@@ -116,3 +134,43 @@ class SurveyDeleteView(UserPassesTestMixin, DeleteView):
         """Solo el creador o un admin puede eliminar"""
         survey = self.get_object()
         return self.request.user == survey.creator or self.request.user.is_staff
+
+
+class HomeView(SurveyListView):
+    template_name = 'global/home.html'
+    paginate_by = None  # No paginar en la página principal
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['current_time'] = timezone.now()
+        return context
+
+
+import csv
+from django.http import HttpResponse
+
+class ExportSurveyView(UserPassesTestMixin, View):
+    def test_func(self):
+        survey = get_object_or_404(Survey, pk=self.kwargs['pk'])
+        return (self.request.user == survey.creator or self.request.user.is_staff) and timezone.now() > survey.deadline
+
+    def get(self, request, pk):
+        survey = get_object_or_404(Survey, pk=pk)
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="{survey.title}_resultados.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow(['Respuesta', 'Votos', 'Porcentaje'])
+        
+        total_votes = sum(answer.votes for answer in survey.answers.all())
+        
+        for answer in survey.answers.all():
+            percentage = (answer.votes / total_votes * 100) if total_votes > 0 else 0
+            writer.writerow([
+                answer.text,
+                answer.votes,
+                f"{percentage:.2f}%"
+            ])
+            
+        return response

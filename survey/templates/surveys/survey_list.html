@@ -1,14 +1,145 @@
+<!-- templates/surveys/surveys_list.html -->
 {% extends "global/base.html" %}
 
 {% block content %}
-<h2>Encuestas Creadas</h2>
-<ul>
-    {% for survey in surveys %}
-        <li>
-            <a href="{% url 'survey_detail' survey.pk %}">{{ survey.title }}</a>
-            <p>{{ survey.description }}</p>
-        </li>
-    {% endfor %}
-</ul>
-<a href="{% url 'survey_create' %}" class="btn">Crear Nueva Encuesta</a>
+<div class="survey-list-container">
+    <h2>📋 Todas las Encuestas</h2>
+    
+    <div class="survey-list">
+        {% for survey in surveys %}
+            <div class="survey-card">
+                <a href="{% url 'survey_detail' survey.pk %}">
+                    <h3>{{ survey.title }}</h3>
+                </a>
+                <p class="meta">
+                    Creada por {{ survey.creator.username }} • 
+                    <span class="deadline-status {% if survey.deadline < current_time %}expired{% else %}active{% endif %}">
+                        ⏰ {% if survey.deadline < current_time %}
+                            Finalizó el {{ survey.deadline|date:"d M Y H:i" }}
+                        {% else %}
+                            Vence en {{ survey.deadline|timeuntil }}
+                        {% endif %}
+                    </span>
+                </p>
+                <p class="description">{{ survey.description|truncatechars:150 }}</p>
+                <div class="stats">
+                    <span>📌 {{ survey.get_category_display }}</span>
+                    <span>🗳 {{ survey.answers.count }} respuestas</span>
+                </div>
+            </div>
+        {% empty %}
+            <p class="empty">No hay encuestas disponibles</p>
+        {% endfor %}
+    </div>
+
+    {% if user.is_authenticated %}
+        <a href="{% url 'survey_create' %}" class="btn btn-primary">➕ Crear Nueva Encuesta</a>
+    {% else %}
+        <div class="alert">
+            <p>Para crear una encuesta, debes 
+                <a href="{% url 'login' %}?next={% url 'survey_create' %}" class="login-link">iniciar sesión</a> 
+                o 
+                <a href="{% url 'users:register' %}" class="register-link">registrarte</a>.
+            </p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+    .survey-list-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .survey-list {
+        display: grid;
+        gap: 1.5rem;
+        margin: 2rem 0;
+    }
+
+    .survey-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        border-left: 4px solid #6366f1;
+    }
+
+    .survey-card h3 {
+        color: #6366f1;
+        margin-bottom: 0.5rem;
+    }
+
+    .meta {
+        color: #6b7280;
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .description {
+        color: #4b5563;
+        margin-bottom: 1rem;
+    }
+
+    .stats {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.9rem;
+        color: #6b7280;
+    }
+
+    .stats span {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 8px;
+        background: #f3f4f6;
+        border-radius: 20px;
+    }
+
+    .deadline-status {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .deadline-status.expired {
+        background: #fee2e2;
+        color: #dc2626;
+        border: 1px solid #fecaca;
+    }
+    
+    .deadline-status.active {
+        background: #dcfce7;
+        color: #16a34a;
+        border: 1px solid #bbf7d0;
+    }
+
+    .alert {
+        background: #fff3cd;
+        border: 1px solid #ffeeba;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-top: 2rem;
+        text-align: center;
+    }
+
+    .login-link {
+        color: #2563eb;
+        font-weight: 500;
+    }
+
+    .register-link {
+        color: #16a34a;
+        font-weight: 500;
+    }
+
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 2rem;
+    }
+</style>
 {% endblock %}

@@ -1,10 +1,98 @@
+<!-- templates/users/profile_edit.html -->
 {% extends "global/base.html" %}
 
 {% block content %}
-<h2>Editar Perfil</h2>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Guardar Cambios</button>
-</form>
+<div class="edit-profile">
+    <h2>🛠 Editar Perfil</h2>
+    <form method="post" enctype="multipart/form-data" id="profileForm" onsubmit="return confirmChanges()">
+        {% csrf_token %}
+        
+        <div class="form-group">
+            <label>Biografía:</label>
+            {{ form.bio }}
+        </div>
+        
+        <div class="form-row">
+            <div class="form-group">
+                <label>País:</label>
+                {{ form.country }}
+            </div>
+            <div class="form-group">
+                <label>Teléfono:</label>
+                {{ form.phone }}
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Dirección:</label>
+            {{ form.address }}
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label>Fecha de nacimiento:</label>
+                {{ form.birth_date }}
+            </div>
+            <div class="form-group">
+                <label>Foto de perfil:</label>
+                {{ form.profile_picture }}
+            </div>
+        </div>
+
+        <button type="submit" class="btn-save">💾 Guardar Cambios</button>
+    </form>
+</div>
+
+<script>
+    function confirmChanges() {
+        return confirm('¿Estás seguro de querer guardar los cambios?');
+    }
+</script>
+
+<style>
+    .edit-profile {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+    
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-row {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .form-row .form-group {
+        flex: 1;
+    }
+    
+    label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+    }
+    
+    input, textarea {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    
+    .btn-save {
+        background: #4CAF50;
+        color: white;
+        padding: 0.8rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s;
+    }
+    
+    .btn-save:hover {
+        background: #45a049;
+    }
+</style>
 {% endblock %}

@@ -5,6 +5,27 @@
     <title>{% block title %}Encuestas{% endblock %}</title>
 </head>
 <body>
+    <!-- Barra de navegación -->
+    <div style="padding: 10px; background-color: #f0f0f0;">
+        <a href="{% url 'home' %}">Inicio</a> |
+        <a href="{% url 'survey_list' %}">Lista de Encuestas</a> |
+        {% if user.is_authenticated %}
+            {# Usuario LOGUEADO #}
+            <a href="{% url 'survey_create' %}">Crear Encuesta</a> |
+            <a href="{% url 'users:profile_detail' %}">Mi Perfil</a> |
+            <form action="{% url 'logout' %}" method="post" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" style="background: none; border: none; color: #007bff; cursor: pointer;">
+                    Cerrar Sesión ({{ user.username }})
+                </button>
+            </form>
+        {% else %}
+            {# Usuario NO logueado #}
+            <a href="{% url 'login' %}">Iniciar Sesión</a> |
+            <a href="{% url 'users:register' %}">Registrarse</a> |
+        {% endif %}
+    </div>
+
     {% block content %}{% endblock %}
 </body>
 </html>

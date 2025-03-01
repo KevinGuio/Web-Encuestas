@@ -1,32 +1,153 @@
 <!-- surveys/templates/surveys/survey_detail.html -->
 {% extends "global/base.html" %}
+{% load survey_filters %}
 
 {% block content %}
-<h2>{{ survey.title }}</h2>
-<p>{{ survey.description }}</p>
+<div class="survey-header">
+    <h2>{{ survey.title }}</h2>
+    <div class="survey-meta">
+        <p><strong>Creada por:</strong> {{ survey.creator.username }}</p>
+        <p><strong>Categoría:</strong> {{ survey.get_category_display }}</p>
+        <p class="deadline-status {% if is_expired %}expired{% else %}active{% endif %}">
+            ⏰ {% if is_expired %}Finalizó el {{ survey.deadline|date:"d M Y H:i" }}{% else %}Vence en {{ survey.deadline|timeuntil }}{% endif %}
+        </p>
+    </div>
+</div>
 
-<h3>Respuestas:</h3>
-<ul>
-    {% for answer in survey.answers.all %}
-        <li>
-            {{ answer.text }} - Votos: {{ answer.votes }}
-            {% if not user_has_voted %}
-                <form method="post" action="{% url 'vote' survey.pk answer.pk %}">
-                    {% csrf_token %}
-                    <button type="submit">Votar</button>
-                </form>
-            {% endif %}
-        </li>
-    {% endfor %}
-</ul>
+<p class="survey-description">{{ survey.description }}</p>
 
-{% if user_has_voted %}
-    <p>¡Ya has votado en esta encuesta!</p>
-{% endif %}
-{% if request.user == survey.creator or request.user.is_staff %}
-<div class="admin-actions">
-    <a href="{% url 'survey_edit' survey.pk %}" class="btn">Editar Encuesta</a>
-    <a href="{% url 'survey_delete' survey.pk %}" class="btn btn-danger">Eliminar Encuesta</a>
+{% if not is_expired %}
+<div class="survey-content">
+    <h3>Respuestas:</h3>
+    <ul class="answers-list">
+        {% for answer in survey.answers.all %}
+            <li class="answer-item">
+                <div class="answer-content">
+                    <span class="answer-text">{{ answer.text }}</span>
+                    <span class="vote-count">Votos: {{ answer.votes }}</span>
+                </div>
+                
+                {% if user.is_authenticated %}
+                    {% if not user_has_voted %}
+                        <form method="post" action="{% url 'vote' survey.pk answer.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="vote-button">Votar</button>
+                        </form>
+                    {% endif %}
+                {% else %}
+                    <small class="login-prompt">
+                        (<a href="{% url 'login' %}?next={{ request.path }}">Inicia sesión</a> para votar)
+                    </small>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% else %}
+<div class="survey-results">
+    <h3>Resultados Finales</h3>
+    <div class="results-summary">
+        {% for answer in survey.answers.all %}
+            <div class="result-item">
+                <div class="result-bar" style="width: '{{ answer.votes|divide:survey.total_votes|floatformat:3 }}%'"></div>
+                <span class="result-text">{{ answer.text }}</span>
+                <span class="result-percentage">{{ answer.votes|divide:survey.total_votes|floatformat:2 }}%</span>
+            </div>
+        {% endfor %}
+    </div>
+    
+    {% if request.user == survey.creator or request.user.is_staff %}
+        <a href="{% url 'survey_export' survey.pk %}" class="export-btn">
+            📥 Exportar Resultados (CSV)
+        </a>
+    {% endif %}
 </div>
 {% endif %}
+
+<div class="survey-status">
+    {% if user.is_authenticated and user_has_voted %}
+        <p class="already-voted">¡Ya has votado en esta encuesta!</p>
+    {% elif not user.is_authenticated and not is_expired %}
+        <p class="login-required">Debes <a href="{% url 'login' %}?next={{ request.path }}">iniciar sesión</a> para votar.</p>
+    {% endif %}
+</div>
+
+{% if request.user == survey.creator or request.user.is_staff %}
+<div class="admin-actions">
+    <a href="{% url 'survey_edit' survey.pk %}" class="btn edit-btn">✏️ Editar Encuesta</a>
+    <a href="{% url 'survey_delete' survey.pk %}" class="btn delete-btn">🗑️ Eliminar Encuesta</a>
+</div>
+{% endif %}
+
+<style>
+    /* Estilos existentes... */
+    .deadline-status {
+        padding: 8px 12px;
+        border-radius: 5px;
+        display: inline-block;
+    }
+    
+    .deadline-status.active {
+        background: #e3f2fd;
+        color: #1976d2;
+    }
+    
+    .deadline-status.expired {
+        background: #ffebee;
+        color: #d32f2f;
+    }
+    
+    .survey-results {
+        margin-top: 2rem;
+    }
+    
+    .results-summary {
+        margin: 1.5rem 0;
+    }
+    
+    .result-item {
+        margin: 1rem 0;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        position: relative;
+    }
+    
+    .result-bar {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 100%;
+        background: #c8e6c9;
+        z-index: 0;
+        transition: width 0.5s ease;
+    }
+    
+    .result-text {
+        position: relative;
+        z-index: 1;
+    }
+    
+    .result-percentage {
+        position: relative;
+        z-index: 1;
+        float: right;
+        font-weight: bold;
+    }
+    
+    .export-btn {
+        display: inline-block;
+        padding: 12px 20px;
+        background: #2196f3;
+        color: white;
+        border-radius: 5px;
+        text-decoration: none;
+        transition: background 0.3s;
+    }
+    
+    .export-btn:hover {
+        background: #1976d2;
+        color: white;
+    }
+</style>
 {% endblock %}

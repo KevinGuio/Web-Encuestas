@@ -24,10 +24,12 @@ class User(AbstractUser):
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    bio = models.TextField('Biografía', blank=True, max_length=500)
-    location = models.CharField('Ubicación', max_length=100, blank=True)
-    birth_date = models.DateField('Fecha de nacimiento', null=True, blank=True)
-    profile_picture = models.ImageField('Foto de perfil', upload_to='profile_pics/', blank=True)
+    bio = models.TextField(blank=True)
+    country = models.CharField("País", max_length=100, blank=True)  # Cambiado de location
+    address = models.CharField("Dirección", max_length=255, blank=True)  # Nuevo campo
+    phone = models.CharField("Teléfono", max_length=20, blank=True)  # Nuevo campo
+    birth_date = models.DateField("Fecha de nacimiento", null=True, blank=True)
+    profile_picture = models.ImageField(upload_to='profile_pics/', blank=True)
 
     def __str__(self):
         return f"Perfil de {self.user.username}"
