@@ -55,6 +55,7 @@
                 </p>
                 <p class="description">{{ survey.description|truncatechars:100 }}</p>
                 <div class="stats">
+                    <span>⭐ {{ survey.get_average_rating|default:"0.0" }}/5.0</span>
                     <span>📌 {{ survey.get_category_display }}</span>
                     <span>🗳 {{ survey.answers.count }} respuestas</span>
                 </div>

@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
+from django.db.models import Avg
+
 # Create your models here.
 User = get_user_model()
 # models.py (app: surveys)
@@ -25,6 +27,19 @@ class Survey(models.Model):
 
     def __str__(self):
         return self.title
+    
+    def get_average_rating(self):
+        return self.ratings.aggregate(Avg('stars'))['stars__avg'] or 0.0
+    
+    def get_rating_stars(self):
+        avg = self.get_average_rating()
+        full = int(avg)
+        half = 1 if (avg - full) >= 0.5 else 0
+        return {
+            'full': range(full),       # Convertir a rango iterable
+            'half': range(half),       # Convertir a rango iterable
+            'empty': range(5 - full - half)
+        }
     
     pass
 
@@ -60,5 +75,31 @@ class UserVote(models.Model):
     class Meta:
         unique_together = ('user', 'survey')
 
+class Rating(models.Model):
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='ratings')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    stars = models.IntegerField(choices=[(i, '★' * i) for i in range(1, 6)])
+    created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        unique_together = ('survey', 'user')
 
+class Comment(models.Model):
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE, related_name='comments')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    parent = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    likes = models.ManyToManyField(User, related_name='liked_comments', blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Comentario de {self.user.username}"
+    
+    def total_likes(self):
+        return self.likes.count()
+    
+    def can_delete(self, user):
+        return user == self.user or user.is_staff

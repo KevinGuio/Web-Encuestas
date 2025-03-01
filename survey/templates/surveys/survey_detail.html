@@ -1,153 +1,318 @@
-<!-- surveys/templates/surveys/survey_detail.html -->
 {% extends "global/base.html" %}
 {% load survey_filters %}
 
 {% block content %}
-<div class="survey-header">
-    <h2>{{ survey.title }}</h2>
-    <div class="survey-meta">
-        <p><strong>Creada por:</strong> {{ survey.creator.username }}</p>
-        <p><strong>Categoría:</strong> {{ survey.get_category_display }}</p>
-        <p class="deadline-status {% if is_expired %}expired{% else %}active{% endif %}">
-            ⏰ {% if is_expired %}Finalizó el {{ survey.deadline|date:"d M Y H:i" }}{% else %}Vence en {{ survey.deadline|timeuntil }}{% endif %}
-        </p>
+<div class="survey-container">
+    <!-- Encabezado -->
+    <div class="survey-header">
+        <h2>{{ survey.title }}</h2>
+        <div class="survey-meta">
+            <p><strong>Creada por:</strong> {{ survey.creator.username }}</p>
+            <p><strong>Categoría:</strong> {{ survey.get_category_display }}</p>
+            <p class="deadline-status {% if is_expired %}expired{% else %}active{% endif %}">
+                ⏰ {% if is_expired %}Finalizó el {{ survey.deadline|date:"d M Y H:i" }}{% else %}Vence en {{ survey.deadline|timeuntil }}{% endif %}
+            </p>
+        </div>
     </div>
-</div>
 
-<p class="survey-description">{{ survey.description }}</p>
+    <!-- Descripción -->
+    <p class="survey-description">{{ survey.description }}</p>
 
-{% if not is_expired %}
-<div class="survey-content">
-    <h3>Respuestas:</h3>
-    <ul class="answers-list">
-        {% for answer in survey.answers.all %}
-            <li class="answer-item">
-                <div class="answer-content">
-                    <span class="answer-text">{{ answer.text }}</span>
-                    <span class="vote-count">Votos: {{ answer.votes }}</span>
-                </div>
-                
-                {% if user.is_authenticated %}
-                    {% if not user_has_voted %}
-                        <form method="post" action="{% url 'vote' survey.pk answer.pk %}">
-                            {% csrf_token %}
-                            <button type="submit" class="vote-button">Votar</button>
-                        </form>
-                    {% endif %}
-                {% else %}
-                    <small class="login-prompt">
-                        (<a href="{% url 'login' %}?next={{ request.path }}">Inicia sesión</a> para votar)
-                    </small>
-                {% endif %}
-            </li>
-        {% endfor %}
-    </ul>
-</div>
-{% else %}
-<div class="survey-results">
-    <h3>Resultados Finales</h3>
-    <div class="results-summary">
-        {% for answer in survey.answers.all %}
-            <div class="result-item">
-                <div class="result-bar" style="width: '{{ answer.votes|divide:survey.total_votes|floatformat:3 }}%'"></div>
-                <span class="result-text">{{ answer.text }}</span>
-                <span class="result-percentage">{{ answer.votes|divide:survey.total_votes|floatformat:2 }}%</span>
+    <!-- Contenido principal -->
+    <div class="main-content">
+        {% if not is_expired %}
+            <!-- Sección de votación -->
+            <div class="voting-section">
+                <h3>Respuestas:</h3>
+                <ul class="answers-list">
+                    {% for answer in survey.answers.all %}
+                        <li class="answer-item">
+                            <div class="answer-content">
+                                <span class="answer-text">{{ answer.text }}</span>
+                                <span class="vote-count">Votos: {{ answer.votes }}</span>
+                            </div>
+                            
+                            {% if user.is_authenticated %}
+                                {% if not user_has_voted %}
+                                    <form method="post" action="{% url 'vote' survey.pk answer.pk %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="vote-button">Votar</button>
+                                    </form>
+                                {% endif %}
+                            {% else %}
+                                <small class="login-prompt">
+                                    (<a href="{% url 'login' %}?next={{ request.path }}">Inicia sesión</a> para votar)
+                                </small>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
             </div>
-        {% endfor %}
+        {% else %}
+            <!-- Resultados finales -->
+            <div class="results-section">
+                <h3>Resultados Finales</h3>
+                <div class="results-summary">
+                    {% for answer in survey.answers.all %}
+                        <div class="result-item">
+                            <div class="result-bar" style="width: '{{ answer.votes|divide:survey.total_votes|floatformat:3 }}%'"></div>
+                            <span class="result-text">{{ answer.text }}</span>
+                            <span class="result-percentage">{{ answer.votes|divide:survey.total_votes|floatformat:2 }}%</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Valoraciones -->
+        <div class="rating-section">
+            <h3>Valoración de la encuesta</h3>
+            <div class="average-rating" id="average-rating">
+                {% with stars=survey.get_rating_stars %}
+                    {% for _ in stars.full %}★{% endfor %}
+                    {% for _ in stars.half %}½{% endfor %}
+                    {% for _ in stars.empty %}☆{% endfor %}
+                    <span>({{ survey.get_average_rating }}/5.0)</span>
+                {% endwith %}
+            </div>
+            
+            <div class="star-rating" id="star-rating">
+                {% for i in "12345" %}
+                    <span class="star {% if user_rating and user_rating.stars >= forloop.counter %}active{% endif %} {% if is_expired %}disabled{% endif %}" 
+                          data-rating="{{ forloop.counter }}"
+                          {% if is_expired %}title="Esta encuesta ha finalizado"{% endif %}>
+                        ★
+                    </span>
+                {% endfor %}
+            </div>
+            <small id="rating-message" class="{% if is_expired %}expired{% else %}active{% endif %}">
+                {% if is_expired %}Las valoraciones están cerradas{% endif %}
+            </small>
+        </div>
+
+        <!-- Sección de comentarios -->
+        <div class="comments-section">
+            <h3>Comentarios ({{ survey.comments.count }})</h3>
+            
+            {% if not is_expired and user.is_authenticated %}
+                <form id="comment-form" class="comment-form">
+                    {% csrf_token %}
+                    <textarea id="comment-text" placeholder="Escribe tu comentario..." required></textarea>
+                    <button type="submit" class="btn">Publicar comentario</button>
+                </form>
+            {% endif %}
+
+            <div id="comments-list">
+                {% for comment in survey.comments.all %}
+                    {% if not comment.parent %}
+                        {% include "surveys/comment.html" with comment=comment %}
+                    {% endif %}
+                {% empty %}
+                    <p class="no-comments">Aún no hay comentarios. ¡Sé el primero en opinar!</p>
+                {% endfor %}
+            </div>
+        </div>
     </div>
+
+    <!-- Acciones -->
+    <div class="action-section">
+        <!-- Compartir encuesta -->
+        <button class="share-btn" onclick="copySurveyLink()">
+            📤 Compartir Encuesta
+            <span class="tooltip">¡Enlace copiado!</span>
+        </button>
+
+        <!-- Acciones de administrador -->
+        {% if request.user == survey.creator or request.user.is_staff %}
+        <div class="admin-actions">
+            <a href="{% url 'survey_export' survey.pk %}" class="export-btn">
+                📥 Exportar Resultados (CSV)
+            </a>
+            <a href="{% url 'survey_edit' survey.pk %}" class="btn edit-btn">✏️ Editar</a>
+            <a href="{% url 'survey_delete' survey.pk %}" class="btn delete-btn">🗑️ Eliminar</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Mensajes de estado -->
+    <div class="status-messages">
+        {% if user.is_authenticated and user_has_voted %}
+            <p class="already-voted">¡Ya has votado en esta encuesta!</p>
+        {% elif not user.is_authenticated and not is_expired %}
+            <p class="login-required">Debes <a href="{% url 'login' %}?next={{ request.path }}">iniciar sesión</a> para votar.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Scripts -->
+{% if not is_expired %}
+<script>
+// Script para comentarios
+document.getElementById('comment-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const text = document.getElementById('comment-text').value;
     
-    {% if request.user == survey.creator or request.user.is_staff %}
-        <a href="{% url 'survey_export' survey.pk %}" class="export-btn">
-            📥 Exportar Resultados (CSV)
-        </a>
-    {% endif %}
-</div>
+    try {
+        const response = await fetch("{% url 'post_comment' survey.pk %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({text: text})
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            const commentsList = document.getElementById('comments-list');
+            commentsList.insertAdjacentHTML('afterbegin', data.comment);
+            document.getElementById('comment-text').value = '';
+        }
+    } catch (error) {
+        console.error('Error:', error);
+    }
+});
+
+// Funciones para likes y respuestas
+window.toggleLike = async (commentId) => {
+    try {
+        const response = await fetch(`/comments/${commentId}/like/`, {
+            method: 'POST',
+            headers: {'X-CSRFToken': '{{ csrf_token }}'}
+        });
+        
+        const data = await response.json();
+        const likeBtn = document.querySelector(`[data-comment-id="${commentId}"] .like-btn`);
+        
+        if (data.liked) {
+            likeBtn.classList.add('liked');
+        } else {
+            likeBtn.classList.remove('liked');
+        }
+        likeBtn.querySelector('span').textContent = data.total_likes;
+        
+    } catch (error) {
+        console.error('Error:', error);
+    }
+};
+
+window.deleteComment = async (commentId) => {
+    if (confirm('¿Eliminar este comentario?')) {
+        try {
+            await fetch(`/comments/${commentId}/delete/`, {
+                method: 'POST',
+                headers: {'X-CSRFToken': '{{ csrf_token }}'}
+            });
+            document.querySelector(`[data-comment-id="${commentId}"]`).remove();
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+};
+
+// Resto del script existente...
+</script>
 {% endif %}
 
-<div class="survey-status">
-    {% if user.is_authenticated and user_has_voted %}
-        <p class="already-voted">¡Ya has votado en esta encuesta!</p>
-    {% elif not user.is_authenticated and not is_expired %}
-        <p class="login-required">Debes <a href="{% url 'login' %}?next={{ request.path }}">iniciar sesión</a> para votar.</p>
-    {% endif %}
-</div>
-
-{% if request.user == survey.creator or request.user.is_staff %}
-<div class="admin-actions">
-    <a href="{% url 'survey_edit' survey.pk %}" class="btn edit-btn">✏️ Editar Encuesta</a>
-    <a href="{% url 'survey_delete' survey.pk %}" class="btn delete-btn">🗑️ Eliminar Encuesta</a>
-</div>
-{% endif %}
-
+<!-- Estilos -->
 <style>
-    /* Estilos existentes... */
-    .deadline-status {
-        padding: 8px 12px;
-        border-radius: 5px;
-        display: inline-block;
-    }
-    
-    .deadline-status.active {
-        background: #e3f2fd;
-        color: #1976d2;
-    }
-    
-    .deadline-status.expired {
-        background: #ffebee;
-        color: #d32f2f;
-    }
-    
-    .survey-results {
-        margin-top: 2rem;
-    }
-    
-    .results-summary {
-        margin: 1.5rem 0;
-    }
-    
-    .result-item {
-        margin: 1rem 0;
-        padding: 10px;
-        background: #f8f9fa;
-        border-radius: 5px;
-        position: relative;
-    }
-    
-    .result-bar {
-        position: absolute;
-        left: 0;
-        top: 0;
-        height: 100%;
-        background: #c8e6c9;
-        z-index: 0;
-        transition: width 0.5s ease;
-    }
-    
-    .result-text {
-        position: relative;
-        z-index: 1;
-    }
-    
-    .result-percentage {
-        position: relative;
-        z-index: 1;
-        float: right;
-        font-weight: bold;
-    }
-    
-    .export-btn {
-        display: inline-block;
-        padding: 12px 20px;
-        background: #2196f3;
-        color: white;
-        border-radius: 5px;
-        text-decoration: none;
-        transition: background 0.3s;
-    }
-    
-    .export-btn:hover {
-        background: #1976d2;
-        color: white;
-    }
+/* Estilos para comentarios */
+.comments-section {
+    margin-top: 3rem;
+    border-top: 1px solid #eee;
+    padding-top: 2rem;
+}
+
+.comment-form {
+    margin-bottom: 2rem;
+}
+
+.comment-form textarea {
+    width: 100%;
+    padding: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    resize: vertical;
+}
+
+#comments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.comment {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    position: relative;
+}
+
+.comment .replies {
+    margin-left: 3rem;
+    margin-top: 1rem;
+    border-left: 2px solid #eee;
+    padding-left: 1rem;
+}
+
+.comment-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.comment-header strong {
+    color: #2d3748;
+}
+
+.comment-header small {
+    color: #718096;
+}
+
+.comment-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.like-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #718096;
+}
+
+.like-btn.liked {
+    color: #e53e3e;
+}
+
+.delete-comment-btn {
+    background: none;
+    border: none;
+    color: #e53e3e;
+    cursor: pointer;
+    margin-left: auto;
+}
+
+.reply-form {
+    margin-top: 1rem;
+    display: none;
+}
+
+.reply-form.active {
+    display: block;
+}
+
+.no-comments {
+    text-align: center;
+    color: #718096;
+    padding: 2rem;
+}
 </style>
 {% endblock %}

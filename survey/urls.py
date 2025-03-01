@@ -6,6 +6,8 @@ from .views import vote
 from .views import SurveyUpdateView
 from .views import SurveyDeleteView
 from .views import ExportSurveyView
+from .views import rate_survey
+from . import views
 
 urlpatterns = [
     path('create/', SurveyCreateView.as_view(), name='survey_create'),
@@ -15,4 +17,8 @@ urlpatterns = [
     path('<int:pk>/edit/', SurveyUpdateView.as_view(), name='survey_edit'),
     path('<int:pk>/delete/', SurveyDeleteView.as_view(), name='survey_delete'),
     path('<int:pk>/export/', ExportSurveyView.as_view(), name='survey_export'),
+    path('<int:pk>/rate/', rate_survey, name='rate_survey'),
+    path('comments/<int:comment_id>/like/', views.like_comment, name='like_comment'),
+    path('comments/<int:comment_id>/delete/', views.delete_comment, name='delete_comment'),
+    path('<int:survey_id>/comment/', views.post_comment, name='post_comment'),
 ]

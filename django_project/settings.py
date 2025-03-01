@@ -127,3 +127,5 @@ STATIC_URL = 'static/'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_REDIRECT_URL = 'users:profile_detail'
 LOGOUT_REDIRECT_URL = 'home'
+USE_TZ = True  # Debe ser True
+TIME_ZONE = 'America/Bogota'  # Ajusta a tu zona horaria

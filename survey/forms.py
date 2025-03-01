@@ -1,5 +1,5 @@
 from django import forms
-from .models import Survey
+from .models import Survey, Rating, Comment
 
 class SurveyCreateForm(forms.ModelForm):
     # Campo para seleccionar el número de respuestas (1-5)
@@ -31,3 +31,38 @@ class SurveyCreateForm(forms.ModelForm):
         for i in range(1, num_answers + 1):
             if not cleaned_data.get(f'answer_{i}'):
                 self.add_error(f'answer_{i}', 'Este campo es obligatorio.')
+
+class RatingForm(forms.ModelForm):
+    class Meta:
+        model = Rating
+        fields = ['stars']
+        widgets = {
+            'stars': forms.RadioSelect(choices=[
+                (1, '★'), 
+                (2, '★★'), 
+                (3, '★★★'), 
+                (4, '★★★★'), 
+                (5, '★★★★★')
+            ])
+        }
+
+
+class CommentForm(forms.ModelForm):
+    class Meta:
+        model = Comment
+        fields = ['text']
+        widgets = {
+            'text': forms.Textarea(attrs={
+                'rows': 2,
+                'placeholder': 'Escribe tu comentario...'
+            })
+        }
+
+class ReplyForm(CommentForm):
+    class Meta(CommentForm.Meta):
+        widgets = {
+            'text': forms.Textarea(attrs={
+                'rows': 1,
+                'placeholder': 'Escribe una respuesta...'
+            })
+        }

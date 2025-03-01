@@ -1,0 +1,31 @@
+<div class="comment {% if comment.parent %}reply{% endif %}" data-comment-id="{{ comment.id }}">
+    <div class="comment-header">
+        <strong>{{ comment.user.username }}</strong>
+        <small>{{ comment.created_at|timesince }} ago</small>
+        
+        {% if comment.can_delete(request.user) %}
+            <button class="delete-comment-btn" onclick="deleteComment('{{ comment.id }}')">🗑</button>
+        {% endif %}
+    </div>
+    
+    <p class="comment-text">{{ comment.text }}</p>
+    
+    <div class="comment-actions">
+        <button class="like-btn {% if request.user in comment.likes.all %}liked{% endif %}" 
+                onclick="toggleLike('{{ comment.id }}')">
+            ♥ <span>{{ comment.total_likes }}</span>
+        </button>
+        
+        {% if not comment.parent and not is_expired %}
+            <button class="reply-btn" onclick="showReplyForm('{{ comment.id }}')">Responder</button>
+        {% endif %}
+    </div>
+    
+    <div class="reply-form" id="reply-form-{{ comment.id }}"></div>
+    
+    <div class="replies">
+        {% for reply in comment.replies.all %}
+            {% include "surveys/comment.html" with comment=reply %}
+        {% endfor %}
+    </div>
+</div>
