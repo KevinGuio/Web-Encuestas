@@ -26,6 +26,15 @@
             💬 Responder
         </button>
         {% endif %}
+
+        <!-- Botón de Reportar (NUEVO) -->
+        {% if user.is_authenticated %}
+        <button class="btn-report" 
+                onclick="showReportModal('comment', '{{ comment.id }}')">
+            ⚠️ Reportar
+        </button>
+        {% endif %}
+        
     </div>
 
     <!-- Formulario de respuesta (oculto por defecto) -->

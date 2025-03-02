@@ -21,4 +21,7 @@ urlpatterns = [
     path('survey/<int:pk>/comment/', views.post_comment, name='post_comment'),
     path('comments/<int:pk>/like/', views.like_comment, name='like_comment'),
     path('comments/<int:pk>/delete/', views.delete_comment, name='delete_comment'),
+    path('report/', views.create_report, name='create_report'),
+    path('reports/', views.report_list, name='report_list'),
+    path('reports/<int:pk>/resolve/', views.resolve_report, name='resolve_report'),
 ]

@@ -1,0 +1,217 @@
+{% extends "global/base.html" %}
+
+
+{% block content %}
+<div class="admin-reports">
+    <h2>Reportes Pendientes</h2>
+    
+    {% for report in reports %}
+    <div class="report-item" data-report-id="{{ report.id }}">
+        <div class="report-content">
+            <h4>Reporte #{{ report.id }}</h4>
+            <p><strong>Tipo:</strong> {{ report.content_type.model }}</p>
+            <p><strong>Motivo:</strong> {{ report.reason }}</p>
+            <p><strong>Reportado por:</strong> {{ report.reporter.username }}</p>
+            <p><strong>Contenido:</strong> 
+                {% if report.content_object %}
+                    {{ report.content_object }}
+                {% else %}
+                    (Contenido eliminado)
+                {% endif %}
+            </p>
+        </div>
+        <div class="report-actions">
+            <button onclick="resolveReport('{{ report.id }}')" class="btn-resolve">
+                ✅ Resolver
+            </button>
+        </div>
+    </div>
+    {% empty %}
+    <p>No hay reportes pendientes</p>
+    {% endfor %}
+</div>
+
+<script>
+function resolveReport(reportId) {
+    // Usar la URL correcta con el prefijo de la aplicación
+    const url = "{% url 'resolve_report' 0 %}".replace('0', reportId);
+    
+    if (confirm('¿Marcar este reporte como resuelto?')) {
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Eliminar usando el atributo data-report-id
+                document.querySelector(`[data-report-id="${reportId}"]`).remove();
+            }
+        });
+    }
+}
+</script>
+
+<style>
+    /* Estilos generales */
+    .admin-reports {
+        max-width: 1200px;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        font-family: 'Segoe UI', Arial, sans-serif;
+    }
+
+    h2 {
+        color: #2c3e50;
+        font-size: 2rem;
+        margin-bottom: 2rem;
+        border-bottom: 3px solid #3498db;
+        padding-bottom: 0.5rem;
+        display: inline-block;
+    }
+
+    /* Tarjeta de reporte */
+    .report-item {
+        background: #ffffff;
+        border-radius: 10px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+        padding: 1.5rem;
+        transition: transform 0.2s ease;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .report-item:hover {
+        transform: translateY(-2px);
+    }
+
+    /* Contenido del reporte */
+    .report-content {
+        flex: 1;
+        padding-right: 2rem;
+    }
+
+    .report-content h4 {
+        margin: 0 0 1rem 0;
+        color: #34495e;
+        font-size: 1.2rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .report-content h4::before {
+        content: "📌";
+        font-size: 1.1em;
+    }
+
+    .report-content p {
+        margin: 0.5rem 0;
+        color: #7f8c8d;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .report-content strong {
+        color: #2c3e50;
+        font-weight: 600;
+        min-width: 120px;
+        display: inline-block;
+    }
+
+    /* Acciones */
+    .report-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        min-width: 150px;
+    }
+
+    /* Botón Resolver - Versión Corregida */
+    .btn-resolve {
+        background: #27ae60;
+        color: white;
+        border: none;
+        padding: 0.8rem 1.5rem;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Eliminar el pseudo-elemento anterior */
+    .btn-resolve::before {
+        content: none !important;
+    }
+
+    /* Añadir estilo al emoji directamente */
+    .btn-resolve::after {
+        display: inline-block;
+        filter: brightness(1.5); /* Mejorar visibilidad en fondo verde */
+    }
+
+    /* Mensaje de contenido eliminado */
+    .report-content p:last-child {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid #ecf0f1;
+    }
+
+    /* Lista vacía */
+    .admin-reports > p {
+        text-align: center;
+        color: #95a5a6;
+        padding: 2rem;
+        background: #f9f9f9;
+        border-radius: 8px;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .report-item {
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+        
+        .report-actions {
+            width: 100%;
+            flex-direction: row;
+            justify-content: flex-end;
+        }
+        
+        .report-content {
+            padding-right: 0;
+        }
+    }
+
+    @media (max-width: 480px) {
+        .report-content p {
+            font-size: 0.9rem;
+        }
+        
+        .btn-resolve {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+
+    /* Animación al eliminar */
+    @keyframes fadeOut {
+        from { opacity: 1; transform: translateY(0); }
+        to { opacity: 0; transform: translateY(-20px); }
+    }
+
+    .report-item.deleting {
+        animation: fadeOut 0.3s ease forwards;
+    }
+</style>
+{% endblock %}
+

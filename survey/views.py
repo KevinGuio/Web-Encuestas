@@ -25,6 +25,7 @@ from .forms import RatingForm
 from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.template.loader import render_to_string
+from django.contrib.admin.views.decorators import staff_member_required
 
 class SurveyCreateView(LoginRequiredMixin, CreateView):
     model = Survey
@@ -315,3 +316,76 @@ def delete_comment(request, pk):
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+from django.contrib.contenttypes.models import ContentType
+from .models import Report
+from django.http import HttpResponseForbidden
+from django.shortcuts import render
+
+@require_POST
+@login_required
+def create_report(request):
+    content_type = request.POST.get('content_type')
+    object_id = request.POST.get('object_id')
+    reason = request.POST.get('reason', '')
+    
+    try:
+        model_class = ContentType.objects.get(model=content_type).model_class()
+        content_object = model_class.objects.get(pk=object_id)
+        
+        Report.objects.create(
+            content_object=content_object,
+            reporter=request.user,
+            reason=reason
+        )
+        return JsonResponse({'success': True})
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+from django.contrib.contenttypes.models import ContentType
+
+@staff_member_required
+def report_list(request):
+    reports = Report.objects.filter(resolved=False).prefetch_related('content_type')
+    
+    # Obtener todos los objetos reportados en una sola consulta
+    content_types = ContentType.objects.filter(
+        pk__in=reports.values_list('content_type', flat=True).distinct()
+    )
+    
+    # Mapear content_types a sus modelos
+    model_classes = {ct.id: ct.model_class() for ct in content_types}
+    
+    # Obtener todos los IDs de los objetos reportados
+    object_ids = {
+        ct.id: list(reports.filter(content_type=ct).values_list('object_id', flat=True))
+        for ct in content_types
+    }
+    
+    # Obtener todos los objetos en una consulta por modelo
+    fetched_objects = {}
+    for ct_id, model_class in model_classes.items():
+        if model_class:
+            fetched_objects[ct_id] = model_class.objects.filter(
+                pk__in=object_ids[ct_id]
+            ).in_bulk()
+    
+    # Adjuntar los objetos a los reportes
+    for report in reports:
+        model_class = model_classes.get(report.content_type_id)
+        if model_class:
+            report.content_object = fetched_objects.get(
+                report.content_type_id, {}
+            ).get(report.object_id)
+    
+    return render(request, 'surveys/report_list.html', {'reports': reports})
+
+@require_POST
+@staff_member_required
+def resolve_report(request, pk):
+    report = get_object_or_404(Report, pk=pk)
+    report.resolved = True
+    report.save()
+    return JsonResponse({'success': True})

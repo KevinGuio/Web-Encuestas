@@ -13,6 +13,9 @@
             {# Usuario LOGUEADO #}
             <a href="{% url 'survey_create' %}">Crear Encuesta</a> |
             <a href="{% url 'users:profile_detail' %}">Mi Perfil</a> |
+            {% if user.is_staff %}
+                <a href="{% url 'report_list' %}">Reportes</a> |
+            {% endif %}
             <form action="{% url 'logout' %}" method="post" style="display: inline;">
                 {% csrf_token %}
                 <button type="submit" style="background: none; border: none; color: #007bff; cursor: pointer;">

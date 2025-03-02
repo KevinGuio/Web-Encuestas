@@ -82,7 +82,7 @@
                     {% for _ in stars.full %}★{% endfor %}
                     {% for _ in stars.half %}½{% endfor %}
                     {% for _ in stars.empty %}☆{% endfor %}
-                    <span>({{ survey.get_average_rating }}/5.0)</span>
+                    <span>({{ survey.get_average_rating }}/5.0 Valoración promedio) </span>
                 {% endwith %}
             </div>
             
@@ -99,6 +99,15 @@
                 {% if is_expired %}Las valoraciones están cerradas{% endif %}
             </small>
         </div>
+
+        <!-- Después del bloque de valoraciones -->
+        {% if user.is_authenticated %}
+        <div class="report-survey-section">
+            <button class="btn-report" onclick="showReportModal('survey', '{{ survey.id }}')">
+                ⚠️ Reportar Encuesta
+            </button>
+        </div>
+        {% endif %}
 
         <!-- Sección de comentarios -->
         <div class="comments-section">
@@ -372,6 +381,59 @@ window.deleteComment = async (commentId) => {
     }
 };
 
+// Variables globales para el reporte
+let currentReportType = null;
+let currentReportId = null;
+
+// Mostrar modal
+function showReportModal(contentType, contentId) {
+    currentReportType = contentType;
+    currentReportId = contentId;
+    document.getElementById('reportModal').style.display = 'block';
+}
+
+// Cerrar modal
+function closeReportModal() {
+    document.getElementById('reportModal').style.display = 'none';
+    document.getElementById('reportReason').value = '';
+}
+
+// Enviar reporte
+function submitReport() {
+    const reason = document.getElementById('reportReason').value.trim();
+    
+    if (!reason) {
+        alert('Por favor escribe una razón para el reporte');
+        return;
+    }
+
+    fetch("{% url 'create_report' %}", {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+            'content_type': currentReportType,
+            'object_id': currentReportId,
+            'reason': reason
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Reporte enviado correctamente');
+            closeReportModal();
+        } else {
+            alert('❌ Error: ' + (data.error || 'No se pudo enviar el reporte'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error de conexión');
+    });
+}
+
 </script>
 {% endif %}
 
@@ -429,6 +491,19 @@ function copySurveyLink() {
 }
 </script>
 {% endif %}
+
+<!-- Modal de Reporte -->
+<div id="reportModal" class="report-modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeReportModal()">&times;</span>
+        <h3>Reportar contenido</h3>
+        <textarea id="reportReason" placeholder="Describe el motivo del reporte..." rows="4"></textarea>
+        <div class="modal-actions">
+            <button onclick="submitReport()" class="btn-confirm">Enviar</button>
+            <button onclick="closeReportModal()" class="btn-cancel">Cancelar</button>
+        </div>
+    </div>
+</div>
 
 <!-- Estilos -->
 <style>
@@ -889,6 +964,82 @@ function copySurveyLink() {
     25% { transform: scale(1.2); }
     50% { transform: scale(0.9); }
     100% { transform: scale(1); }
+}
+
+/* Estilos para reportes */
+.btn-report {
+    color: black;
+    border: none;
+    cursor: pointer;
+    background: none;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 10px;
+    border-radius: 20px;
+}
+
+
+/* Modal de reporte */
+.report-modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    width: 90%;
+    max-width: 500px;
+    margin: 20% auto;
+    padding: 20px;
+    border-radius: 8px;
+    position: relative;
+}
+
+.modal-content h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.modal-content textarea {
+    width: 100%;
+    margin: 10px 0;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.btn-confirm {
+    background: #4CAF50;
+    color: white;
+    padding: 8px 16px;
+}
+
+.btn-cancel {
+    background: #f44336;
+    color: white;
+    padding: 8px 16px;
+}
+
+.close {
+    position: absolute;
+    right: 15px;
+    top: 10px;
+    font-size: 24px;
+    cursor: pointer;
 }
 </style>
 {% endblock %}

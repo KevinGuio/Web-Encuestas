@@ -3,6 +3,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth import get_user_model
 from django.db.models import Avg
 from django.conf import settings
+from django.contrib.contenttypes.fields import GenericForeignKey
+from django.contrib.contenttypes.models import ContentType
 
 # Create your models here.
 User = get_user_model()
@@ -92,3 +94,18 @@ class Comment(models.Model):
     
     def can_delete(self, user):
         return user == self.user or user.is_staff
+
+
+class Report(models.Model):
+    # Contenido reportado (puede ser Survey o Comment)
+    content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
+    object_id = models.PositiveIntegerField()
+    content_object = GenericForeignKey('content_type', 'object_id')
+    
+    reporter = models.ForeignKey(User, on_delete=models.CASCADE)
+    reason = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Reporte de {self.reporter} - {self.content_object}"
