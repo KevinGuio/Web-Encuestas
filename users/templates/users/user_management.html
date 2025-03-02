@@ -1,0 +1,210 @@
+{% extends "global/base.html" %}
+
+{% block content %}
+<div class="user-management">
+    <h2>Administración de Usuarios</h2>
+    
+    <div class="user-list">
+        {% for user in users %}
+        <div class="user-card" data-user-id="{{ user.id }}">
+            <div class="user-info">
+                <h3>{{ user.username }}</h3>
+                <p>Email: {{ user.email }}</p>
+                <p class="status-text">Estado: {{ user.suspension_status }}</p> 
+                {% if user.is_suspended %}
+                <p class="suspension-details">
+                    Motivo: {{ user.suspension_reason }}<br>
+                    Hasta: {{ user.suspension_end|date:"d/m/Y H:i" }}
+                </p>
+                {% endif %}
+            </div>
+            <div class="user-actions">
+                <button class="btn-suspend" onclick="showSuspensionForm('{{ user.id }}')">
+                    ⚠️ Suspender
+                </button>
+                <button class="btn-delete" onclick="confirmDelete('{{ user.id }}')">
+                    🗑️ Eliminar
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Modal de Suspensión -->
+<div id="suspensionModal" class="modal">
+    <div class="modal-content">
+        <h3>Suspender Usuario</h3>
+        <form id="suspensionForm">
+            <div class="form-group">
+                <label>Motivo:</label>
+                <textarea id="suspensionReason" required rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Duración (días):</label>
+                <input type="number" id="suspensionDuration" min="1" value="7" required>
+            </div>
+            <div class="modal-actions">
+                <button type="button" onclick="submitSuspension()">Confirmar</button>
+                <button type="button" onclick="closeModal()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let currentUserId = null; // <-- ¡Falta esta variable global!
+
+function showSuspensionForm(userId) {
+    currentUserId = userId; // <-- Asignar el ID correctamente
+    document.getElementById('suspensionModal').style.display = 'block';
+}
+
+function closeModal() {
+    document.getElementById('suspensionModal').style.display = 'none';
+    // Limpiar campos del formulario
+    document.getElementById('suspensionReason').value = '';
+    document.getElementById('suspensionDuration').value = '7';
+}
+
+function submitSuspension() {
+    const reason = document.getElementById('suspensionReason').value;
+    const duration = document.getElementById('suspensionDuration').value;
+
+    // Usar la URL correcta con 
+    fetch(`{% url 'users:suspend_user' 0 %}`.replace('0', currentUserId), { 
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            'reason': reason,
+            'duration': duration
+        })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Error en la solicitud: ' + response.status);
+        return response.json();
+    })
+    .then(data => {
+    if (data.success) {
+        const userCard = document.querySelector(`[data-user-id="${currentUserId}"]`);
+        const statusText = userCard.querySelector('.status-text');
+        const suspensionDetails = userCard.querySelector('.suspension-details');
+
+        // Actualizar estado
+        statusText.textContent = `Estado: ${data.new_status}`;
+
+        // Crear o actualizar detalles de suspensión
+        if (!suspensionDetails) {
+            const newDetails = document.createElement('p');
+            newDetails.className = 'suspension-details';
+            userCard.querySelector('.user-info').appendChild(newDetails);
+        }
+        
+        userCard.querySelector('.suspension-details').innerHTML = `
+            Motivo: ${reason}<br>
+            Hasta: ${new Date(data.new_end).toLocaleDateString('es-ES')} ${new Date(data.new_end).toLocaleTimeString('es-ES')}
+        `;
+
+        closeModal();
+    }
+})
+    .catch(error => {
+        alert(error.message);
+    });
+}
+    
+    function confirmDelete(userId) {
+        if (confirm('¿Eliminar permanentemente este usuario?')) {
+            fetch(`/users/delete/${userId}/`, {  // Verificar URL
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('Error en la eliminación');
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    document.querySelector(`[data-user-id="${userId}"]`).remove();
+                }
+            })
+            .catch(error => {
+                alert('Error al eliminar: ' + error.message);
+            });
+        }
+    }
+    </script>
+
+<style>
+/* user_management.html */
+.user-management {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.user-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.user-info h3 {
+    margin: 0 0 0.5rem 0;
+    color: #2c3e50;
+}
+
+.suspension-details {
+    color: #e74c3c;
+    font-size: 0.9rem;
+    margin-top: 0.5rem;
+}
+
+.user-actions {
+    display: flex;
+    gap: 1rem;
+}
+
+.btn-suspend {
+    background: #f1c40f;
+    color: #2c3e50;
+}
+
+.btn-delete {
+    background: #e74c3c;
+    color: white;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+}
+</style>
+{% endblock %}

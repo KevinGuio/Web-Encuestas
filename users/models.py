@@ -1,26 +1,37 @@
 from django.contrib.auth.models import AbstractUser, Group, Permission
 from django.db import models
+from django.utils import timezone
+
 
 class User(AbstractUser):
+    # Campos originales de User
     phone = models.CharField(max_length=20, blank=True)
     
-    # Solución: Agrega related_name únicos
+    # Campos de CustomUser
+    is_suspended = models.BooleanField(default=False)
+    suspension_reason = models.TextField(blank=True, null=True)
+    suspension_end = models.DateTimeField(blank=True, null=True)
+    
+    # Relaciones corregidas para evitar conflictos
     groups = models.ManyToManyField(
         Group,
         verbose_name='groups',
         blank=True,
-        help_text='The groups this user belongs to.',
-        related_name="custom_user_groups",  # Nombre único
+        related_name="custom_user_groups",
         related_query_name="user",
     )
     user_permissions = models.ManyToManyField(
         Permission,
         verbose_name='user permissions',
         blank=True,
-        help_text='Specific permissions for this user.',
-        related_name="custom_user_permissions",  # Nombre único
+        related_name="custom_user_permissions",
         related_query_name="user",
     )
+
+    def suspension_status(self):
+        if self.is_suspended and self.suspension_end > timezone.now():
+            return f"Suspendido hasta {self.suspension_end.strftime('%d/%m/%Y %H:%M')}"
+        return "Activo"
 
 class Profile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
@@ -33,3 +44,5 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"Perfil de {self.user.username}"
+
+
