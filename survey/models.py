@@ -5,6 +5,7 @@ from django.db.models import Avg
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.utils import timezone
 
 # Create your models here.
 User = get_user_model()
@@ -23,11 +24,19 @@ class Survey(models.Model):
     deadline = models.DateTimeField("Tiempo límite")
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
+    is_blocked = models.BooleanField(default=False)
+    block_reason = models.TextField(blank=True, null=True)  # Nuevo campo
+    blocked_at = models.DateTimeField(blank=True, null=True)  # Nuevo campo
     
     @property
     def total_votes(self):
         return sum(answer.votes for answer in self.answers.all())
+    
+    def is_expired(self):
+        return timezone.now() > self.deadline
 
+    def can_be_blocked(self):
+        return not self.is_expired
     def __str__(self):
         return self.title
     

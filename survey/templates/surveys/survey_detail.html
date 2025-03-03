@@ -21,6 +21,12 @@
 
     <!-- Contenido principal -->
     <div class="main-content">
+        {% if survey.is_blocked %}
+    <p class="block-details">
+        🔒 Bloqueada el {{ survey.blocked_at|date:"d/m/Y H:i" }}<br>
+        Motivo: {{ survey.block_reason }}
+    </p>
+         {% endif %}
         {% if not is_expired %}
             <!-- Sección de votación -->
             <div class="voting-section">

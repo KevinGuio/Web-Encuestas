@@ -1,0 +1,187 @@
+{% extends "global/base.html" %}
+
+{% block content %}
+<div class="survey-management">
+    <h2>Administración de Encuestas</h2>
+    
+    <div class="survey-list">
+        {% for survey in surveys %}
+        <div class="survey-card" data-survey-id="{{ survey.id }}">
+            <div class="survey-info">
+                <h3>{{ survey.title }}</h3>
+                <p>Creada por: {{ survey.creator.username }}</p>
+                <p>Estado:
+                    <span class="status {% if survey.is_blocked %}blocked{% elif survey.is_expired %}expired{% else %}active{% endif %}">
+                        {% if survey.is_blocked %}🔒 Bloqueada
+                        {% elif survey.is_expired %}⌛ Expirada
+                        {% else %}✅ Activa
+                        {% endif %}
+                    </span>
+                </p>
+            </div>
+            <div class="survey-actions">
+                {% if not survey.is_expired %}
+                <button class="btn-toggle-block" 
+                        data-survey-id="{{ survey.id }}"
+                        onclick="toggleBlock(this)">
+                    {% if survey.is_blocked %}🔓 Desbloquear
+                    {% else %}🔒 Bloquear
+                    {% endif %}
+                </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div id="blockModal" class="modal">
+    <div class="modal-content">
+        <h3>🔒 Bloquear Encuesta</h3>
+        <form id="blockForm">
+            <div class="form-group">
+                <label>Motivo del bloqueo:</label>
+                <textarea id="blockReason" required rows="3"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-confirm" onclick="confirmBlock()">Confirmar</button>
+                <button type="button" class="btn-cancel" onclick="closeBlockModal()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    let currentSurveyId = null;
+    
+    function toggleBlock(button) {
+        const surveyId = button.dataset.surveyId;
+        const isBlocked = button.textContent.includes('Desbloquear');
+        
+        if (isBlocked) {
+            // Desbloquear directamente
+            sendBlockRequest(surveyId, null);
+        } else {
+            // Mostrar modal para motivo
+            currentSurveyId = surveyId;
+            document.getElementById('blockModal').style.display = 'block';
+        }
+    }
+    
+    function confirmBlock() {
+        const reason = document.getElementById('blockReason').value;
+        if (!reason) {
+            alert('¡Debe ingresar un motivo!');
+            return;
+        }
+        sendBlockRequest(currentSurveyId, reason);
+    }
+    
+    function sendBlockRequest(surveyId, reason) {
+    const bodyData = reason !== null ? { reason: reason } : {};  // Cuerpo vacío al desbloquear
+    console.log('Sending request to:', `/survey/surveys_management/toggle-block/${surveyId}/`);
+    console.log('Request body:', bodyData);
+
+    fetch(`/survey/surveys_management/toggle-block/${surveyId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(bodyData)
+    })
+    .then(response => {
+        if (response.status === 400) {
+            return response.json().then(err => { 
+                console.error('Error response:', err);
+                throw new Error(err.error || 'Solicitud inválida');
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            location.reload(); // Recargar para ver cambios
+        }
+    })
+    .finally(() => {
+        closeBlockModal();
+    });
+}
+    
+    function closeBlockModal() {
+        document.getElementById('blockModal').style.display = 'none';
+        document.getElementById('blockReason').value = '';
+        currentSurveyId = null;
+    }
+</script>
+
+<style>
+.survey-management {
+    max-width: 1200px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+}
+
+.survey-card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.status.blocked { color: #e74c3c; }
+.status.expired { color: #f39c12; }
+.status.active { color: #2ecc71; }
+
+.btn-toggle-block {
+    background: #3498db;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.form-group textarea {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+</style>
+{% endblock %}

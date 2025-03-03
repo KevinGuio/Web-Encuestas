@@ -26,6 +26,10 @@ from django.views.decorators.http import require_POST
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.contrib.admin.views.decorators import staff_member_required
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.shortcuts import get_object_or_404
+from .models import Survey
 
 class SurveyCreateView(LoginRequiredMixin, CreateView):
     model = Survey
@@ -121,7 +125,8 @@ class SurveyListView(ListView):
 def vote(request, survey_id, answer_id):
     survey = get_object_or_404(Survey, id=survey_id)
     answer = get_object_or_404(Answer, id=answer_id, survey=survey)
-    
+    if survey.is_blocked:
+        return JsonResponse({'error': 'Esta encuesta está bloqueada'}, status=403)
     # Verificar si el usuario ya votó
     if UserVote.objects.filter(user=request.user, survey=survey).exists():
         return redirect('survey_detail', pk=survey.id)
@@ -227,6 +232,10 @@ import json
 def rate_survey(request, pk):
     if not request.user.is_authenticated:
         return JsonResponse({'error': 'Debes iniciar sesión'}, status=403)
+    survey = get_object_or_404(Survey, pk=pk)
+    
+    if survey.is_blocked:
+        return JsonResponse({'error': 'Esta encuesta está bloqueada'}, status=403)
     
     try:
         stars = int(request.POST.get('stars') or json.loads(request.body).get('stars'))
@@ -260,7 +269,8 @@ def rate_survey(request, pk):
 @require_POST
 def post_comment(request, pk):
     survey = get_object_or_404(Survey, pk=pk)
-    
+    if survey.is_blocked:
+        return JsonResponse({'error': 'Esta encuesta está bloqueada'}, status=403)
     try:
         comment = Comment.objects.create(
             user=request.user,
@@ -347,6 +357,12 @@ def create_report(request):
 from django.contrib.contenttypes.models import ContentType
 
 @staff_member_required
+def survey_management(request):
+    surveys = Survey.objects.all().order_by('-created_at')
+    return render(request, 'surveys/survey_management.html', {
+        'surveys': surveys
+    })
+
 def report_list(request):
     reports = Report.objects.filter(resolved=False).prefetch_related('content_type')
     
@@ -389,3 +405,23 @@ def resolve_report(request, pk):
     report.resolved = True
     report.save()
     return JsonResponse({'success': True})
+
+@csrf_exempt
+def toggle_survey_block(request, survey_id):
+    if request.method == 'POST':
+        survey = get_object_or_404(Survey, id=survey_id)
+        data = json.loads(request.body)
+        reason = data.get('reason', None)
+
+        if reason:
+            survey.is_blocked = True
+            survey.block_reason = reason
+            survey.blocked_at = timezone.now()
+        else:
+            survey.is_blocked = False
+            survey.block_reason = ''
+            survey.blocked_at = None
+
+        survey.save()
+        return JsonResponse({'success': True})
+    return JsonResponse({'error': 'Invalid request method'}, status=400)

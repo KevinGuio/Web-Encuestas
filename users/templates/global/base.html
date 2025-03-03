@@ -16,6 +16,7 @@
             {% if user.is_staff %}
                 <a href="{% url 'report_list' %}">Reportes</a> |
                 <a href="{% url 'users:user_management' %}">Administrar Usuarios</a> |
+                <a href="{% url 'survey_management' %}">Suspensión de Encuestas</a> |
             {% endif %}
             <form action="{% url 'logout' %}" method="post" style="display: inline;">
                 {% csrf_token %}
