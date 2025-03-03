@@ -16,7 +16,6 @@ from django.utils import timezone
 import csv
 from django.http import HttpResponse
 from django.views.generic import DetailView
-from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.shortcuts import redirect
@@ -30,6 +29,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from .models import Survey
+from django.db.models import Q
 
 class SurveyCreateView(LoginRequiredMixin, CreateView):
     model = Survey
@@ -126,7 +126,8 @@ def vote(request, survey_id, answer_id):
     survey = get_object_or_404(Survey, id=survey_id)
     answer = get_object_or_404(Answer, id=answer_id, survey=survey)
     if survey.is_blocked:
-        return JsonResponse({'error': 'Esta encuesta está bloqueada'}, status=403)
+        return redirect('survey_detail', pk=survey.id)
+    
     # Verificar si el usuario ya votó
     if UserVote.objects.filter(user=request.user, survey=survey).exists():
         return redirect('survey_detail', pk=survey.id)
@@ -235,7 +236,7 @@ def rate_survey(request, pk):
     survey = get_object_or_404(Survey, pk=pk)
     
     if survey.is_blocked:
-        return JsonResponse({'error': 'Esta encuesta está bloqueada'}, status=403)
+        return redirect('survey_detail', pk=survey.id)
     
     try:
         stars = int(request.POST.get('stars') or json.loads(request.body).get('stars'))
@@ -270,7 +271,7 @@ def rate_survey(request, pk):
 def post_comment(request, pk):
     survey = get_object_or_404(Survey, pk=pk)
     if survey.is_blocked:
-        return JsonResponse({'error': 'Esta encuesta está bloqueada'}, status=403)
+        return redirect('survey_detail', pk=survey.id)
     try:
         comment = Comment.objects.create(
             user=request.user,
@@ -317,7 +318,6 @@ def like_comment(request, pk):
 @require_POST
 def delete_comment(request, pk):
     comment = get_object_or_404(Comment, pk=pk)
-    
     if not (request.user == comment.user or request.user.is_staff):
         return JsonResponse({'success': False, 'error': 'No tienes permiso'}, status=403)
     
@@ -425,3 +425,20 @@ def toggle_survey_block(request, survey_id):
         survey.save()
         return JsonResponse({'success': True})
     return JsonResponse({'error': 'Invalid request method'}, status=400)
+
+
+def survey_list(request):
+    query = request.GET.get('q', '').strip()  # Limpiar espacios en blanco
+    current_time = timezone.now()
+    
+    # Filtrar solo por título y encuestas no expiradas
+    surveys = Survey.objects.filter(
+        Q(title__icontains=query)
+    ).order_by('-created_at')
+    
+    context = {
+        'surveys': surveys,
+        'search_query': query,
+        'current_time': current_time
+    }
+    return render(request, 'surveys/survey_list.html', context)

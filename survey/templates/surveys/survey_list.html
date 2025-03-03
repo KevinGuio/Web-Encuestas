@@ -1,35 +1,64 @@
-<!-- templates/surveys/surveys_list.html -->
 {% extends "global/base.html" %}
 
 {% block content %}
 <div class="survey-list-container">
     <h2>📋 Todas las Encuestas</h2>
     
+    <!-- Formulario de búsqueda -->
+    <form method="GET" action="{% url 'survey_list' %}">
+        <input type="text" name="q" placeholder="Buscar encuestas..." value="{{ search_query }}">
+        <button type="submit">Buscar</button>
+    </form>
+    
     <div class="survey-list">
+        <h3>Encuestas Activas</h3>
         {% for survey in surveys %}
-            <div class="survey-card">
-                <a href="{% url 'survey_detail' survey.pk %}">
-                    <h3>{{ survey.title }}</h3>
-                </a>
-                <p class="meta">
-                    Creada por {{ survey.creator.username }} • 
-                    <span class="deadline-status {% if survey.deadline < current_time %}expired{% else %}active{% endif %}">
-                        ⏰ {% if survey.deadline < current_time %}
-                            Finalizó el {{ survey.deadline|date:"d M Y H:i" }}
-                        {% else %}
-                            Vence en {{ survey.deadline|timeuntil }}
-                        {% endif %}
-                    </span>
-                </p>
-                <p class="description">{{ survey.description|truncatechars:150 }}</p>
-                <div class="stats">
-                    <span>⭐ {{ survey.get_average_rating|default:"0.0" }}/5.0</span>
-                    <span>📌 {{ survey.get_category_display }}</span>
-                    <span>🗳 {{ survey.answers.count }} respuestas</span>
+            {% if survey.deadline > current_time %}
+                <div class="survey-card">
+                    <a href="{% url 'survey_detail' survey.pk %}">
+                        <h3>{{ survey.title }}</h3>
+                    </a>
+                    <p class="meta">
+                        Creada por {{ survey.creator.username }} • 
+                        <span class="deadline-status active">
+                            ⏰ Vence en {{ survey.deadline|timeuntil }}
+                        </span>
+                    </p>
+                    <p class="description">{{ survey.description|truncatechars:150 }}</p>
+                    <div class="stats">
+                        <span>⭐ {{ survey.get_average_rating|default:"0.0" }}/5.0</span>
+                        <span>📌 {{ survey.get_category_display }}</span>
+                        <span>🗳 {{ survey.answers.count }} respuestas</span>
+                    </div>
                 </div>
-            </div>
+            {% endif %}
         {% empty %}
-            <p class="empty">No hay encuestas disponibles</p>
+            <p>No hay encuestas activas.</p>
+        {% endfor %}
+        
+        <h3>Encuestas Vencidas</h3>
+        {% for survey in surveys %}
+            {% if survey.deadline <= current_time %}
+                <div class="survey-card">
+                    <a href="{% url 'survey_detail' survey.pk %}">
+                        <h3>{{ survey.title }}</h3>
+                    </a>
+                    <p class="meta">
+                        Creada por {{ survey.creator.username }} • 
+                        <span class="deadline-status expired">
+                            ⏰ Finalizó el {{ survey.deadline|date:"d M Y H:i" }}
+                        </span>
+                    </p>
+                    <p class="description">{{ survey.description|truncatechars:150 }}</p>
+                    <div class="stats">
+                        <span>⭐ {{ survey.get_average_rating|default:"0.0" }}/5.0</span>
+                        <span>📌 {{ survey.get_category_display }}</span>
+                        <span>🗳 {{ survey.answers.count }} respuestas</span>
+                    </div>
+                </div>
+            {% endif %}
+        {% empty %}
+            <p>No hay encuestas vencidas.</p>
         {% endfor %}
     </div>
 

@@ -26,4 +26,5 @@ urlpatterns = [
     path('reports/<int:pk>/resolve/', views.resolve_report, name='resolve_report'),
     path('surveys_management/', survey_management, name='survey_management'),
     path('surveys_management/toggle-block/<int:survey_id>/', toggle_survey_block, name='toggle_survey_block'),
+    path('surveys/', views.survey_list, name='survey_list'),
 ]

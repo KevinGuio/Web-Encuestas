@@ -6,6 +6,23 @@
     <div class="hero-content">
         <h1 class="logo">SURVEICONIX</h1>
         <p class="tagline">Tu plataforma para crear y participar en encuestas interactivas</p>
+        <!-- Buscador -->
+        <div class="search-container">
+            <form action="{% url 'survey_list' %}" method="GET" class="search-form">
+                <input 
+                    type="text" 
+                    name="q" 
+                    placeholder="Buscar encuestas por título o descripción..."
+                    class="search-input"
+                    required
+                >
+                <button type="submit" class="btn btn-primary search-button">
+                    🔍 Buscar
+                </button>
+            </form>
+        </div>
+
+        <div class="cta-buttons">
         <div class="cta-buttons">
             {% if user.is_authenticated %}
                 <a href="{% url 'survey_create' %}" class="btn btn-primary">Crear Encuesta</a>
@@ -64,7 +81,7 @@
             <p class="empty">Aún no hay encuestas disponibles. ¡Sé el primero en crear una!</p>
         {% endfor %}
     </div>
-    <a href="{% url 'survey_list' %}" class="btn btn-secondary">Ver todas las encuestas</a>
+    <a href="/survey" class="btn btn-secondary">Ver todas las encuestas</a>
 </section>
 
 <style>
@@ -233,6 +250,50 @@
         padding: 2rem;
         background: #f8f9fa;
         border-radius: 8px;
+    }
+    .search-container {
+        max-width: 800px;
+        margin: 2rem auto;
+    }
+
+    .search-form {
+        display: flex;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .search-input {
+        flex: 1;
+        padding: 0.8rem 1.2rem;
+        border: 2px solid #e0e7ff;
+        border-radius: 6px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #6366f1;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    .search-button {
+        padding: 0.8rem 1.5rem;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    /* Ajustes responsive */
+    @media (max-width: 768px) {
+        .search-form {
+            flex-direction: column;
+        }
+        
+        .search-button {
+            justify-content: center;
+        }
     }
 </style>
 {% endblock %}

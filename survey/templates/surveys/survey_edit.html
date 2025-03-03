@@ -1,19 +1,115 @@
 {% extends "global/base.html" %}
 
 {% block content %}
-<h2>Editar Encuesta</h2>
-<form method="post" id="surveyForm">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn">Guardar Cambios</button>
-    <a href="{% url 'survey_detail' object.pk %}" class="btn">Cancelar</a>
-</form>
+<div class="survey-edit-container">
+    <h2>✏️ Editar Encuesta</h2>
+    <form method="post" id="surveyForm" class="survey-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+            <a href="{% url 'survey_detail' object.pk %}" class="btn btn-secondary">Cancelar</a>
+        </div>
+    </form>
+</div>
 
-<!-- Mismo JS que en creación para mostrar campos dinámicos -->
 <script>
 document.getElementById('id_num_answers').addEventListener('change', function() {
-    // ... (código JS anterior)
+    const num = parseInt(this.value);
+    // Mostrar/ocultar campos de respuestas
+    for (let i = 1; i <= 5; i++) {
+        const field = document.getElementById(`id_answer_${i}`);
+        if (field) {
+            field.parentElement.style.display = i <= num ? 'block' : 'none';
+            field.required = i <= num;
+        }
+    }
 });
+
+// Ejecutar al cargar la página para inicializar
 document.getElementById('id_num_answers').dispatchEvent(new Event('change'));
 </script>
+
+<style>
+    .survey-edit-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem;
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .survey-edit-container h2 {
+        color: #6366f1;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .survey-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: space-between;
+    }
+
+    .btn {
+        display: inline-block;
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        text-align: center;
+    }
+
+    .btn-primary {
+        background: #6366f1;
+        color: #fff;
+    }
+
+    .btn-primary:hover {
+        background: #4f46e5;
+    }
+
+    .btn-primary:active {
+        background: #4338ca;
+    }
+
+    .btn-secondary {
+        background: #e5e7eb;
+        color: #374151;
+    }
+
+    .btn-secondary:hover {
+        background: #d1d5db;
+    }
+
+    .btn-secondary:active {
+        background: #9ca3af;
+    }
+
+    .survey-form label {
+        font-weight: 500;
+        color: #4b5563;
+    }
+
+    .survey-form input, .survey-form select, .survey-form textarea {
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 1rem;
+        color: #4b5563;
+    }
+
+    .survey-form input:focus, .survey-form select:focus, .survey-form textarea:focus {
+        border-color: #6366f1;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+</style>
 {% endblock %}

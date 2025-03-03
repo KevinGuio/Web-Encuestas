@@ -8,7 +8,6 @@
     <!-- Barra de navegación -->
     <div style="padding: 10px; background-color: #f0f0f0;">
         <a href="{% url 'home' %}">Inicio</a> |
-        <a href="{% url 'survey_list' %}">Lista de Encuestas</a> |
         {% if user.is_authenticated %}
             {# Usuario LOGUEADO #}
             <a href="{% url 'survey_create' %}">Crear Encuesta</a> |
@@ -16,7 +15,7 @@
             {% if user.is_staff %}
                 <a href="{% url 'report_list' %}">Reportes</a> |
                 <a href="{% url 'users:user_management' %}">Administrar Usuarios</a> |
-                <a href="{% url 'survey_management' %}">Suspensión de Encuestas</a> |
+                <a href="{% url 'survey_management' %}">Bloqueo de Encuestas</a> |
             {% endif %}
             <form action="{% url 'logout' %}" method="post" style="display: inline;">
                 {% csrf_token %}

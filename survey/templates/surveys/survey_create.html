@@ -1,12 +1,14 @@
 {% extends "global/base.html" %}
 
 {% block content %}
-<h2>Crear Encuesta</h2>
-<form method="post" id="surveyForm">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn">Crear y Publicar Encuesta</button>
-</form>
+<div class="survey-create-container">
+    <h2>➕ Crear Encuesta</h2>
+    <form method="post" id="surveyForm" class="survey-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Crear y Publicar Encuesta</button>
+    </form>
+</div>
 
 <script>
 document.getElementById('id_num_answers').addEventListener('change', function() {
@@ -24,4 +26,65 @@ document.getElementById('id_num_answers').addEventListener('change', function() 
 // Ejecutar al cargar la página para inicializar
 document.getElementById('id_num_answers').dispatchEvent(new Event('change'));
 </script>
+
+<style>
+    .survey-create-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 2rem;
+        background: hsl(240, 4%, 80%);
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+
+    .survey-create-container h2 {
+        color: #6366f1;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+
+    .survey-form {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .survey-form .btn {
+        align-self: center;
+        padding: 0.75rem 1.5rem;
+        background: #6366f1;
+        color: #fff;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+    }
+
+    .survey-form .btn:hover {
+        background: #4f46e5;
+    }
+
+    .survey-form .btn:active {
+        background: #4338ca;
+    }
+
+    .survey-form label {
+        font-weight: 500;
+        color: #4b5563;
+    }
+
+    .survey-form input, .survey-form select, .survey-form textarea {
+        padding: 0.75rem;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 1rem;
+        color: #4b5563;
+    }
+
+    .survey-form input:focus, .survey-form select:focus, .survey-form textarea:focus {
+        border-color: #6366f1;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+</style>
 {% endblock %}
