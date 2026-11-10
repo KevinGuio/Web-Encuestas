@@ -134,7 +134,7 @@ User (AbstractUser) 1──1 Profile
 - **`Comment`**: autorreferenciado (`parent`) para respuestas anidadas, con `likes` many-to-many.
 - **`Report`**: usa `GenericForeignKey` para reportar tanto encuestas como comentarios con un
   solo modelo.
-
+```
 ---
 
 ## Cómo ejecutarlo
